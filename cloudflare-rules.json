@@ -1,0 +1,67 @@
+{
+  "$schema": "https://developers.cloudflare.com/waf/custom-rules/",
+  "description": "Cabinetto B2B — Cloudflare WAF & edge security rules (import via dashboard or Terraform)",
+  "rules": [
+    {
+      "name": "Block SQL Injection Patterns",
+      "description": "Block SQLi in URL, query string, and request body at the edge before origin.",
+      "enabled": true,
+      "action": "block",
+      "expression": "(http.request.uri.path matches \"(?i)(union\\\\s+select|select\\\\s+.\\\\s+from|or\\\\s+1\\\\s*=\\\\s*1|concat\\\\s*\\\\(|'\\\\s*--|;\\\\s*drop|information_schema)\") or (http.request.uri.query matches \"(?i)(union\\\\s+select|select\\\\s+.\\\\s+from|or\\\\s+1\\\\s*=\\\\s*1|concat\\\\s*\\\\(|'\\\\s*--)\") or (http.request.body.raw matches \"(?i)(union\\\\s+select|select\\\\s+.\\\\s+from|or\\\\s+1\\\\s*=\\\\s*1|concat\\\\s*\\\\(|'\\\\s*--)\")"
+    },
+    {
+      "name": "Block XSS Patterns",
+      "description": "Block reflected/stored XSS probes at the edge.",
+      "enabled": true,
+      "action": "block",
+      "expression": "(http.request.uri.path matches \"(?i)(<script|javascript:|onerror=|onload=)\") or (http.request.uri.query matches \"(?i)(<script|javascript:|onerror=|onload=)\") or (http.request.body.raw matches \"(?i)(<script|javascript:|onerror=|onload=)\")"
+    },
+    {
+      "name": "Bot Shield — Bulk Upload Endpoints",
+      "description": "Require browser verification (JS Challenge) for bulk upload and spreadsheet ingestion endpoints.",
+      "enabled": true,
+      "action": "js_challenge",
+      "expression": "(http.request.uri.path matches \"^/api/admin/products/bulk-upload\") or (http.request.uri.path matches \"^/api/cart/bulk-upload\") or (http.request.uri.path matches \"^/api/admin/products/bulk-upload/template\")"
+    },
+    {
+      "name": "Bot Shield — Block Obvious Script Clients on Upload APIs",
+      "description": "Challenge non-browser automation on sensitive upload routes.",
+      "enabled": true,
+      "action": "managed_challenge",
+      "expression": "(http.request.uri.path matches \"^/api/admin/products/bulk-upload\") and (http.user_agent matches \"(?i)(curl|python-requests|wget|scrapy|httpclient|go-http-client)\")"
+    },
+    {
+      "name": "Geo Managed Challenge — Non-US Suspicious Traffic",
+      "description": "Texas-focused B2B: challenge non-US traffic with suspicious paths or auth abuse signals.",
+      "enabled": true,
+      "action": "managed_challenge",
+      "expression": "(ip.geoip.country ne \"US\") and ((http.request.uri.path matches \"^/api/auth/\") or (http.request.uri.path matches \"^/admin\") or (http.request.uri.path matches \"(?i)(wp-admin|wp-login|\\\\.env|phpmyadmin|\\\\.git)\"))"
+    },
+    {
+      "name": "Honeypot Paths — Permanent Block",
+      "description": "Instant block for common scanner paths that do not exist in Cabinetto.",
+      "enabled": true,
+      "action": "block",
+      "expression": "(http.request.uri.path matches \"(?i)^/(wp-admin|wp-login\\\\.php|\\\\.env|phpmyadmin|xmlrpc\\\\.php|administrator)(/|$)\") or (http.request.uri.path matches \"(?i)^/admin/\\\\.git(/|$)\")"
+    },
+    {
+      "name": "Rate Limit — Auth Endpoints",
+      "description": "Edge rate limit for login/register before origin.",
+      "enabled": true,
+      "action": "block",
+      "expression": "(http.request.uri.path in {\"/api/auth/login\" \"/api/auth/register\"}) and (cf.threat_score gt 10)",
+      "ratelimit": {
+        "characteristics": ["ip.src"],
+        "period": 60,
+        "requests_per_period": 20,
+        "mitigation_timeout": 3600
+      }
+    }
+  ],
+  "notes": [
+    "Apply these rules in Cloudflare Dashboard → Security → WAF → Custom rules, or via Terraform cloudflare_ruleset resource.",
+    "Set Bot Management to 'Definitely automated' action = Managed Challenge for /api/admin/* in production.",
+    "Ensure cf-connecting-ip header is forwarded to origin for Redis IP bans in Next.js proxy.",
+    "Pair with Turnstile/reCAPTCHA on /login and dealer registration forms."
+  ]
+}

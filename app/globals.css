@@ -1,0 +1,224 @@
+@import "tailwindcss";
+
+:root {
+  --brand-copper: #b8611a;
+  --brand-copper-hover: #9a5216;
+  --brand-copper-light: rgb(184 97 26 / 0.12);
+  --brand-navy: #1c3a4a;
+  --brand-navy-hover: #152e3b;
+  --brand-navy-muted: #4a6572;
+  --brand-cream: #f5f0e6;
+  --brand-cream-dark: #e8e0d0;
+  --brand-border: #d9cfc0;
+  --brand-surface: #ffffff;
+
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --color-brand: #b8611a;
+  --color-brand-hover: #9a5216;
+  --color-brand-light: rgb(184 97 26 / 0.12);
+  --color-brand-ring: rgb(184 97 26 / 0.25);
+
+  --color-navy: #1c3a4a;
+  --color-navy-hover: #152e3b;
+  --color-navy-muted: #4a6572;
+
+  --color-cream: #f5f0e6;
+  --color-cream-dark: #e8e0d0;
+
+  --color-border: #d9cfc0;
+  --color-surface: #ffffff;
+  --color-muted: #64748b;
+
+  --shadow-soft: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px rgb(15 23 42 / 0.06);
+  --shadow-soft-lg: 0 2px 4px rgb(15 23 42 / 0.04), 0 8px 24px rgb(15 23 42 / 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #152531;
+    --foreground: #f5f0e6;
+    --brand-surface: #1c3a4a;
+    --brand-cream-dark: #243f4f;
+    --brand-border: #2f4f61;
+    --brand-navy-muted: #a8bcc6;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  line-height: 1.6;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: inherit;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+  }
+
+  p {
+    line-height: 1.625;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="search"]),
+  select,
+  textarea {
+    font-family: inherit;
+
+    &::placeholder {
+      color: rgb(100 116 139 / 0.9);
+    }
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  @layer base {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="search"]),
+    select,
+    textarea {
+      &::placeholder {
+        color: rgb(245 240 230 / 0.38);
+      }
+    }
+  }
+}
+
+@utility shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+@utility shadow-soft-lg {
+  box-shadow: var(--shadow-soft-lg);
+}
+
+::selection {
+  background: rgb(184 97 26 / 0.22);
+  color: var(--foreground);
+}
+
+@keyframes cart-bounce {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.28);
+  }
+  65% {
+    transform: scale(0.92);
+  }
+}
+
+@keyframes cart-check-pop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes cart-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cart-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+@utility animate-cart-bounce {
+  animation: cart-bounce 0.55s ease-out;
+}
+
+@utility animate-cart-check-pop {
+  animation: cart-check-pop 0.35s ease-out;
+}
+
+@utility animate-cart-toast-in {
+  animation: cart-toast-in 0.35s ease-out;
+}
+
+@utility animate-cart-toast-out {
+  animation: cart-toast-out 0.35s ease-in forwards;
+}
+
+@utility animate-cart-panel-pulse {
+  animation: cart-panel-pulse 0.65s ease-out;
+}
+
+@keyframes cart-panel-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(184 97 26 / 0);
+  }
+  40% {
+    box-shadow: 0 0 0 4px rgb(184 97 26 / 0.35);
+  }
+}
+
+/* reCAPTCHA v3 badge: hidden globally, shown only on /login and /register */
+.grecaptcha-badge {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body.recaptcha-badge-visible .grecaptcha-badge {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
