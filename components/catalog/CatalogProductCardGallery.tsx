@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type MouseEvent } from "react";
 import { ProductCatalogImage } from "@/components/catalog/ProductCatalogImage";
+import { mergeGalleryImages } from "@/lib/composable-gallery";
 import { ui } from "@/lib/ui-classes";
 import type { CatalogProduct } from "@/types/catalog";
 
@@ -17,6 +18,14 @@ export function CatalogProductCardGallery({
   compact = false,
 }: CatalogProductCardGalleryProps) {
   const images = useMemo(() => {
+    if (product.gallerySources) {
+      const merged = mergeGalleryImages(product.gallerySources);
+
+      if (merged.length > 0) {
+        return merged;
+      }
+    }
+
     const unique = [...new Set(product.images.filter(Boolean))];
 
     if (unique.length > 0) {
@@ -24,7 +33,7 @@ export function CatalogProductCardGallery({
     }
 
     return product.image ? [product.image] : [];
-  }, [product.image, product.images]);
+  }, [product.gallerySources, product.image, product.images]);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const hasMultiple = images.length > 1;

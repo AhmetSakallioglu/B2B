@@ -92,7 +92,18 @@ export async function GET(request: Request) {
           ? resolveVariantCover(galleryContext)
           : row.image_url ?? "";
 
-        return mapCatalogRow({ ...row, image_url: coverImage || row.image_url }, images);
+        const mapped = mapCatalogRow({ ...row, image_url: coverImage || row.image_url }, images);
+
+        return {
+          ...mapped,
+          gallerySources: galleryContext
+            ? {
+                productImages: [...galleryContext.productImages],
+                finishImages: [...galleryContext.finishImages],
+                variantImages: [...(galleryContext.variantImages ?? [])],
+              }
+            : undefined,
+        };
       })
       .map((product) => applyCatalogDiscount(product, discountPercent));
 

@@ -14,6 +14,9 @@ type ProductImageLightboxProps = {
   onNext: () => void;
 };
 
+const navButtonClassName =
+  "flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-full border border-white/20 bg-black/60 text-2xl text-white backdrop-blur transition hover:bg-black/80 sm:h-12 sm:w-12";
+
 export function ProductImageLightbox({
   images,
   currentIndex,
@@ -68,7 +71,7 @@ export function ProductImageLightbox({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50"
       role="dialog"
       aria-modal="true"
       aria-label={`${alt} enlarged view`}
@@ -84,7 +87,7 @@ export function ProductImageLightbox({
         type="button"
         onClick={onClose}
         aria-label="Close"
-        className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur transition hover:bg-black/70"
+        className="absolute right-3 top-3 z-30 flex h-11 w-11 touch-manipulation items-center justify-center rounded-full border border-white/20 bg-black/60 text-white backdrop-blur transition hover:bg-black/80 sm:right-4 sm:top-4"
       >
         <svg
           viewBox="0 0 24 24"
@@ -98,51 +101,63 @@ export function ProductImageLightbox({
         </svg>
       </button>
 
-      {hasMultiple && (
-        <>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onPrevious();
-            }}
-            aria-label="Previous image"
-            className="absolute left-2 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 touch-manipulation items-center justify-center rounded-full border border-white/20 bg-black/50 text-2xl text-white backdrop-blur transition hover:bg-black/70 sm:left-4"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onNext();
-            }}
-            aria-label="Next image"
-            className="absolute right-2 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 touch-manipulation items-center justify-center rounded-full border border-white/20 bg-black/50 text-2xl text-white backdrop-blur transition hover:bg-black/70 sm:right-4"
-          >
-            ›
-          </button>
-          <span className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm font-medium text-white backdrop-blur">
-            {currentIndex + 1} / {images.length}
-          </span>
-        </>
-      )}
+      <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-2 pb-12 pt-14 sm:px-4 sm:pb-14 sm:pt-16">
+        <div
+          className="pointer-events-auto flex w-full max-w-6xl items-center gap-2 sm:gap-4"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {hasMultiple ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onPrevious();
+              }}
+              aria-label="Previous image"
+              className={navButtonClassName}
+            >
+              ‹
+            </button>
+          ) : (
+            <div className="hidden w-11 shrink-0 sm:block sm:w-12" aria-hidden="true" />
+          )}
 
-      <div
-        className="relative z-10 flex max-h-[90vh] max-w-[min(90vw,calc(100vw-7rem))] items-center justify-center"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <Image
-          src={src}
-          alt={alt}
-          width={1600}
-          height={1200}
-          className="h-auto max-h-[90vh] w-auto max-w-[90vw] object-contain"
-          sizes="90vw"
-          placeholder="blur"
-          blurDataURL={PRODUCT_IMAGE_BLUR_DATA_URL}
-        />
+          <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+            <Image
+              src={src}
+              alt={alt}
+              width={1600}
+              height={1200}
+              className="pointer-events-none h-auto max-h-[calc(100vh-7rem)] w-auto max-w-full object-contain"
+              sizes="(max-width: 640px) 100vw, 80vw"
+              placeholder="blur"
+              blurDataURL={PRODUCT_IMAGE_BLUR_DATA_URL}
+            />
+          </div>
+
+          {hasMultiple ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onNext();
+              }}
+              aria-label="Next image"
+              className={navButtonClassName}
+            >
+              ›
+            </button>
+          ) : (
+            <div className="hidden w-11 shrink-0 sm:block sm:w-12" aria-hidden="true" />
+          )}
+        </div>
       </div>
+
+      {hasMultiple && (
+        <span className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm font-medium text-white backdrop-blur">
+          {currentIndex + 1} / {images.length}
+        </span>
+      )}
     </div>
   );
 }

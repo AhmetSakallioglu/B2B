@@ -13,6 +13,22 @@ function normalizeUrls(urls: readonly string[]): string[] {
   );
 }
 
+function dedupePreserveOrder(urls: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const url of urls) {
+    if (seen.has(url)) {
+      continue;
+    }
+
+    seen.add(url);
+    unique.push(url);
+  }
+
+  return unique;
+}
+
 /** Merge variant override → product → shared finish gallery, with deduplication. */
 export function mergeGalleryImages(sources: GallerySources): string[] {
   const combined = [
@@ -21,7 +37,7 @@ export function mergeGalleryImages(sources: GallerySources): string[] {
     ...normalizeUrls(sources.finishImages),
   ];
 
-  return Array.from(new Set(combined));
+  return dedupePreserveOrder(combined);
 }
 
 export function galleryCoverUrl(sources: GallerySources): string {

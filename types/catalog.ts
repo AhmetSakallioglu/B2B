@@ -19,6 +19,7 @@ export type CatalogProduct = {
   listPrice?: number;
   image: string;
   images: string[];
+  gallerySources?: GallerySources;
 };
 
 export type ProductImage = {

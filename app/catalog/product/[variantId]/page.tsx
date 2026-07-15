@@ -18,6 +18,7 @@ import {
 import { useSession } from "@/components/auth/SessionProvider";
 import { useCartStore } from "@/store/useCartStore";
 import { buildCartItemLabel } from "@/lib/format-dimensions";
+import { mergeGalleryImages } from "@/lib/composable-gallery";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { ui } from "@/lib/ui-classes";
 import type { CatalogProductDetail } from "@/types/catalog";
@@ -88,6 +89,16 @@ function ProductDetailContent() {
       return [];
     }
 
+    const merged = mergeGalleryImages({
+      productImages: product.gallerySources.productImages,
+      finishImages: product.gallerySources.finishImages,
+      variantImages: product.gallerySources.variantImages,
+    });
+
+    if (merged.length > 0) {
+      return merged;
+    }
+
     if (product.images.length > 0) {
       return product.images;
     }
@@ -156,56 +167,66 @@ function ProductDetailContent() {
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <section className="space-y-4">
-            <div className={`relative aspect-4/3 w-full overflow-hidden p-6 ${ui.catalogCard}`}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeImage) {
-                    setIsLightboxOpen(true);
-                  }
-                }}
-                disabled={!activeImage}
-                className="group relative h-full w-full cursor-zoom-in rounded-xl bg-white p-3 transition hover:ring-2 hover:ring-brand/30 disabled:cursor-not-allowed"
-                aria-label={`View ${product.name} image full screen`}
-              >
-                <div className="relative h-full w-full">
-                  <ProductCatalogImage
-                    src={activeImage}
-                    alt={product.name}
-                    sizes={PRODUCT_GALLERY_MAIN_SIZES}
-                    priority
-                    className="object-contain"
-                  />
-                </div>
-                {activeImage && (
-                  <span className="pointer-events-none absolute bottom-3 right-3 rounded-lg border border-slate-200/80 bg-white/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600 opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100">
-                    Click to zoom
-                  </span>
-                )}
-              </button>
-
-              {hasMultipleImages && (
-                <>
+            <div className={`relative aspect-4/3 w-full overflow-hidden p-4 sm:p-6 ${ui.catalogCard}`}>
+              <div className="flex h-full items-center gap-2 sm:gap-3">
+                {hasMultipleImages ? (
                   <button
                     type="button"
                     onClick={showPreviousImage}
                     aria-label="Previous image"
-                    className="absolute left-4 top-1/2 z-[1] flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-xl text-white backdrop-blur transition hover:bg-black/65"
+                    className="flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-full bg-black/45 text-xl text-white backdrop-blur transition hover:bg-black/65"
                   >
                     ‹
                   </button>
+                ) : (
+                  <div className="hidden w-10 shrink-0 sm:block" aria-hidden="true" />
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeImage) {
+                      setIsLightboxOpen(true);
+                    }
+                  }}
+                  disabled={!activeImage}
+                  className="group relative min-h-0 min-w-0 flex-1 cursor-zoom-in self-stretch rounded-xl bg-white p-2 transition hover:ring-2 hover:ring-brand/30 disabled:cursor-not-allowed sm:p-3"
+                  aria-label={`View ${product.name} image full screen`}
+                >
+                  <div className="relative h-full w-full overflow-hidden">
+                    <ProductCatalogImage
+                      src={activeImage}
+                      alt={product.name}
+                      sizes={PRODUCT_GALLERY_MAIN_SIZES}
+                      priority
+                      className="object-contain"
+                    />
+                  </div>
+                  {activeImage && (
+                    <span className="pointer-events-none absolute bottom-2 right-2 rounded-lg border border-slate-200/80 bg-white/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600 opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100 sm:bottom-3 sm:right-3">
+                      Click to zoom
+                    </span>
+                  )}
+                </button>
+
+                {hasMultipleImages ? (
                   <button
                     type="button"
                     onClick={showNextImage}
                     aria-label="Next image"
-                    className="absolute right-4 top-1/2 z-[1] flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-xl text-white backdrop-blur transition hover:bg-black/65"
+                    className="flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-full bg-black/45 text-xl text-white backdrop-blur transition hover:bg-black/65"
                   >
                     ›
                   </button>
-                  <span className="absolute bottom-4 right-4 z-[1] rounded-full bg-black/45 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-                    {activeImageIndex + 1}/{galleryImages.length}
-                  </span>
-                </>
+                ) : (
+                  <div className="hidden w-10 shrink-0 sm:block" aria-hidden="true" />
+                )}
+              </div>
+
+              {hasMultipleImages && (
+                <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/45 px-2.5 py-1 text-xs font-medium text-white backdrop-blur sm:bottom-4 sm:right-4">
+                  {activeImageIndex + 1}/{galleryImages.length}
+                </span>
               )}
             </div>
             {hasMultipleImages && (
