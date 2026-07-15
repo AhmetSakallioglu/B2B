@@ -84,7 +84,7 @@ export function ProductImageLightbox({
         type="button"
         onClick={onClose}
         aria-label="Close"
-        className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur transition hover:bg-black/70"
+        className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur transition hover:bg-black/70"
       >
         <svg
           viewBox="0 0 24 24"
@@ -107,7 +107,7 @@ export function ProductImageLightbox({
               onPrevious();
             }}
             aria-label="Previous image"
-            className="absolute left-4 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/50 text-2xl text-white backdrop-blur transition hover:bg-black/70"
+            className="absolute left-2 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 touch-manipulation items-center justify-center rounded-full border border-white/20 bg-black/50 text-2xl text-white backdrop-blur transition hover:bg-black/70 sm:left-4"
           >
             ‹
           </button>
@@ -118,18 +118,18 @@ export function ProductImageLightbox({
               onNext();
             }}
             aria-label="Next image"
-            className="absolute right-4 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/50 text-2xl text-white backdrop-blur transition hover:bg-black/70"
+            className="absolute right-2 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 touch-manipulation items-center justify-center rounded-full border border-white/20 bg-black/50 text-2xl text-white backdrop-blur transition hover:bg-black/70 sm:right-4"
           >
             ›
           </button>
-          <span className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm font-medium text-white backdrop-blur">
+          <span className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm font-medium text-white backdrop-blur">
             {currentIndex + 1} / {images.length}
           </span>
         </>
       )}
 
       <div
-        className="relative z-10 flex max-h-[90vh] max-w-[90vw] items-center justify-center"
+        className="relative z-10 flex max-h-[90vh] max-w-[min(90vw,calc(100vw-7rem))] items-center justify-center"
         onClick={(event) => event.stopPropagation()}
       >
         <Image

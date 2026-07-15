@@ -13,11 +13,11 @@ function normalizeUrls(urls: readonly string[]): string[] {
   );
 }
 
-/** Merge product → variant override → shared finish gallery, with deduplication. */
+/** Merge variant override → product → shared finish gallery, with deduplication. */
 export function mergeGalleryImages(sources: GallerySources): string[] {
   const combined = [
-    ...normalizeUrls(sources.productImages),
     ...normalizeUrls(sources.variantImages ?? []),
+    ...normalizeUrls(sources.productImages),
     ...normalizeUrls(sources.finishImages),
   ];
 
