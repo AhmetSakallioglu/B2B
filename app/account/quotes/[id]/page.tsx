@@ -140,11 +140,14 @@ export default function AccountQuoteDetailPage() {
         body: JSON.stringify({ archived: nextArchived }),
       });
 
-      if (!response.ok) {
-        throw new Error(nextArchived ? "Failed to archive quote" : "Failed to restore quote");
+      const data = (await response.json()) as { quote?: QuoteDetail; error?: string };
+
+      if (!response.ok || !data.quote) {
+        throw new Error(
+          data.error ?? (nextArchived ? "Failed to archive quote" : "Failed to restore quote")
+        );
       }
 
-      const data = (await response.json()) as { quote: QuoteDetail };
       setQuoteData((current) =>
         current
           ? {

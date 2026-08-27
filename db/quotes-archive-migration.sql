@@ -1,5 +1,7 @@
 -- Allow dealer quotes to be archived (manual or after an order).
 
+ALTER TABLE quotes DROP CONSTRAINT IF EXISTS quotes_status_check;
+
 DO $$
 DECLARE
   constraint_name text;
@@ -13,6 +15,7 @@ BEGIN
       AND rel.relname = 'quotes'
       AND con.contype = 'c'
       AND pg_get_constraintdef(con.oid) ILIKE '%status%'
+      AND pg_get_constraintdef(con.oid) NOT ILIKE '%archived%'
   LOOP
     EXECUTE format('ALTER TABLE quotes DROP CONSTRAINT IF EXISTS %I', constraint_name);
   END LOOP;

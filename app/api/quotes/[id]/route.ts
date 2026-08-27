@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireCustomerSession } from "@/lib/api-auth";
+import { databaseSetupHint } from "@/lib/db-setup-hints";
 import { checkQuotePriceFreshness } from "@/lib/quote-price-freshness";
 import { getQuoteForUser, setQuoteArchivedForUser } from "@/lib/quotes";
 
@@ -101,6 +102,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ quote });
   } catch (error) {
     console.error("PATCH /api/quotes/[id] failed:", error);
-    return NextResponse.json({ error: "Failed to update quote" }, { status: 500 });
+    const hint = databaseSetupHint(error);
+    return NextResponse.json(
+      { error: hint.trim() ? `Failed to update quote.${hint}` : "Failed to update quote" },
+      { status: 500 }
+    );
   }
 }

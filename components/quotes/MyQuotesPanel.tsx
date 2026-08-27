@@ -138,12 +138,16 @@ export function MyQuotesPanel({ archived = false }: MyQuotesPanelProps) {
         body: JSON.stringify({ archived: nextArchived }),
       });
 
-      if (!response.ok) {
-        throw new Error(nextArchived ? "Failed to archive quote" : "Failed to restore quote");
+      const data = (await response.json()) as { quote?: QuoteDetail; error?: string };
+
+      if (!response.ok || !data.quote) {
+        throw new Error(
+          data.error ?? (nextArchived ? "Failed to archive quote" : "Failed to restore quote")
+        );
       }
 
-      const data = (await response.json()) as { quote: QuoteDetail };
-      setQuotes((current) => current.filter((quote) => quote.id !== data.quote.id));
+      const archivedQuoteId = data.quote.id;
+      setQuotes((current) => current.filter((quote) => quote.id !== archivedQuoteId));
       setMessage(
         nextArchived ? "Quote moved to archive." : "Quote restored to your active list."
       );
