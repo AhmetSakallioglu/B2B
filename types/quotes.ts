@@ -13,6 +13,7 @@ export type QuoteRow = {
   quote_name: string;
   items: OrderCartItem[];
   total_amount: string;
+  admin_discount_percent: string | null;
   status: QuoteStatus;
   created_at: string;
   updated_at: string;
@@ -22,6 +23,8 @@ export type QuoteSummary = {
   id: number;
   quoteName: string;
   totalAmount: number;
+  displayTotalAmount: number;
+  adminDiscountPercent: number;
   status: QuoteStatus;
   itemCount: number;
   createdAt: string;

@@ -25,8 +25,20 @@ export async function bumpUserSessionVersion(
   const sessionVersion = result.rows[0]?.session_version ?? null;
 
   if (sessionVersion !== null) {
-    await invalidateEdgeSessionState(userId);
+    await invalidateEdgeSessionState(userId, sessionVersion);
   }
 
   return sessionVersion;
+}
+
+export async function revokeUserSessions(
+  userId: number,
+  currentSessionVersion?: number | null,
+  client?: QueryExecutor
+) {
+  if (currentSessionVersion && currentSessionVersion > 0) {
+    await invalidateEdgeSessionState(userId, currentSessionVersion);
+  }
+
+  return bumpUserSessionVersion(userId, client);
 }

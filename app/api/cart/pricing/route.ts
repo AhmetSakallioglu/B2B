@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { parseCartLineItemsPayload } from "@/lib/cart-items";
 import { normalizePromoCodeInput } from "@/lib/promo-codes";
+import { getQuoteAdminDiscountForUser, parseOptionalSourceQuoteId } from "@/lib/quotes";
 import { rejectClientPricingTampering } from "@/lib/pricing-request-security";
 import { resolveServerCartPricing } from "@/lib/server-cart-pricing";
 import { normalizeShippingZip } from "@/lib/shipping-zip";
@@ -30,7 +31,12 @@ function parsePricingBody(body: unknown) {
   const postalCode =
     typeof candidate.postalCode === "string" ? candidate.postalCode.trim() : "";
 
-  return { items, promoCode, postalCode };
+  return {
+    items,
+    promoCode,
+    postalCode,
+    sourceQuoteId: parseOptionalSourceQuoteId(candidate.sourceQuoteId),
+  };
 }
 
 export async function POST(request: Request) {
@@ -61,6 +67,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Enter a valid 5-digit delivery ZIP code" }, { status: 400 });
   }
 
+  const extraDiscountPercent = body.sourceQuoteId
+    ? await getQuoteAdminDiscountForUser(body.sourceQuoteId, auth.user!.id)
+    : 0;
+
   const pricing = await resolveServerCartPricing({
     items: body.items,
     userId: auth.user!.id,
@@ -68,6 +78,7 @@ export async function POST(request: Request) {
     promoCode: body.promoCode,
     postalCode: body.postalCode,
     requireAvailability: false,
+    extraDiscountPercent,
   });
 
   if ("error" in pricing) {

@@ -1,6 +1,6 @@
 import { query } from "@/lib/db";
 import type { OrderCartItem } from "@/types/catalog";
-import { isArchivedQuoteStatus } from "@/lib/quote-validation";
+import { isArchivedQuoteStatus, quoteDisplayTotal } from "@/lib/quote-validation";
 import type {
   AdminQuoteDetail,
   AdminQuoteSummary,
@@ -8,6 +8,7 @@ import type {
   QuoteRow,
   QuoteSummary,
 } from "@/types/quotes";
+import { writeAuditLog } from "@/lib/audit-log";
 
 const QUOTE_SELECT = `
   id,
@@ -15,6 +16,7 @@ const QUOTE_SELECT = `
   quote_name,
   items,
   total_amount,
+  COALESCE(admin_discount_percent, 0)::text AS admin_discount_percent,
   status,
   created_at,
   updated_at
@@ -58,11 +60,15 @@ function parseQuoteItems(value: unknown): OrderCartItem[] {
 
 function mapQuoteSummary(row: QuoteRow): QuoteSummary {
   const items = parseQuoteItems(row.items);
+  const totalAmount = Number.parseFloat(row.total_amount);
+  const adminDiscountPercent = Number.parseFloat(row.admin_discount_percent ?? "0") || 0;
 
   return {
     id: row.id,
     quoteName: row.quote_name,
-    totalAmount: Number.parseFloat(row.total_amount),
+    totalAmount,
+    displayTotalAmount: quoteDisplayTotal(totalAmount, adminDiscountPercent),
+    adminDiscountPercent,
     status: row.status,
     itemCount: items.reduce((count, item) => count + item.quantity, 0),
     createdAt: row.created_at,
@@ -90,15 +96,7 @@ export async function createQuote(params: {
     `
       INSERT INTO quotes (user_id, quote_name, items, total_amount, status)
       VALUES ($1, $2, $3::jsonb, $4, 'draft')
-      RETURNING
-        id,
-        user_id,
-        quote_name,
-        items,
-        total_amount,
-        status,
-        created_at,
-        updated_at
+      RETURNING ${QUOTE_SELECT}
     `,
     [params.userId, params.quoteName, JSON.stringify(params.items), params.totalAmount]
   );
@@ -152,6 +150,7 @@ export async function listQuotesForAdmin(filter: QuoteListFilter = {}) {
         q.quote_name,
         q.items,
         q.total_amount,
+        COALESCE(q.admin_discount_percent, 0)::text AS admin_discount_percent,
         q.status,
         q.created_at,
         q.updated_at,
@@ -189,6 +188,7 @@ export async function getQuoteForAdmin(quoteId: number) {
         q.quote_name,
         q.items,
         q.total_amount,
+        COALESCE(q.admin_discount_percent, 0)::text AS admin_discount_percent,
         q.status,
         q.created_at,
         q.updated_at,
@@ -214,6 +214,120 @@ export async function getQuoteForAdmin(quoteId: number) {
     companyName: row.company_name ?? "",
     contactName: row.contact_name ?? "",
   } satisfies AdminQuoteDetail;
+}
+
+export function parseOptionalSourceQuoteId(value: unknown) {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseInt(value, 10)
+        : NaN;
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
+}
+
+export async function getQuoteAdminDiscountForUser(quoteId: number, userId: number) {
+  const result = await query<{ admin_discount_percent: string }>(
+    `
+      SELECT COALESCE(admin_discount_percent, 0)::text AS admin_discount_percent
+      FROM quotes
+      WHERE id = $1 AND user_id = $2
+    `,
+    [quoteId, userId]
+  );
+
+  return Number.parseFloat(result.rows[0]?.admin_discount_percent ?? "0") || 0;
+}
+
+export async function setQuoteAdminDiscount(params: {
+  quoteId: number;
+  adminUserId: number;
+  discountPercent: number;
+}) {
+  const existing = await getQuoteForAdmin(params.quoteId);
+
+  if (!existing) {
+    return null;
+  }
+
+  const result = await query<
+    QuoteRow & {
+      customer_email: string;
+      company_name: string | null;
+      contact_name: string | null;
+      admin_email: string;
+    }
+  >(
+    `
+      UPDATE quotes q
+      SET
+        admin_discount_percent = $2,
+        updated_at = NOW()
+      FROM users dealer, users admin_user
+      WHERE q.id = $1
+        AND dealer.id = q.user_id
+        AND admin_user.id = $3
+      RETURNING
+        q.id,
+        q.user_id,
+        q.quote_name,
+        q.items,
+        q.total_amount,
+        COALESCE(q.admin_discount_percent, 0)::text AS admin_discount_percent,
+        q.status,
+        q.created_at,
+        q.updated_at,
+        dealer.email AS customer_email,
+        dealer.company_name,
+        dealer.contact_name,
+        admin_user.email AS admin_email
+    `,
+    [params.quoteId, params.discountPercent, params.adminUserId]
+  );
+
+  const row = result.rows[0];
+
+  if (!row) {
+    return null;
+  }
+
+  const quote = {
+    ...mapQuoteDetail(row),
+    customerEmail: row.customer_email,
+    companyName: row.company_name ?? "",
+    contactName: row.contact_name ?? "",
+  } satisfies AdminQuoteDetail;
+
+  await writeAuditLog({
+    userId: params.adminUserId,
+    action: "UPDATE",
+    tableName: "quotes",
+    recordId: quote.id,
+    oldValues: {
+      quote_name: existing.quoteName,
+      admin_discount_percent: existing.adminDiscountPercent,
+      total_amount: existing.totalAmount,
+    },
+    newValues: {
+      event: "admin_discount",
+      quote_name: quote.quoteName,
+      customer_email: quote.customerEmail,
+      admin_discount_percent: quote.adminDiscountPercent,
+      total_amount: quote.totalAmount,
+      display_total_amount: quote.displayTotalAmount,
+      summary:
+        quote.adminDiscountPercent > 0
+          ? `${row.admin_email} applied a ${quote.adminDiscountPercent}% special discount on quote "${quote.quoteName}" for ${quote.customerEmail}.`
+          : `${row.admin_email} removed the special discount on quote "${quote.quoteName}" for ${quote.customerEmail}.`,
+    },
+  });
+
+  return quote;
 }
 
 export async function logQuoteAdminView(params: {

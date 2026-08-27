@@ -179,6 +179,12 @@ export function formatAuditLogSummary(row: AuditLogRow & { user_email?: string |
   }
 
   if (row.action === "UPDATE" && row.table_name === "quotes") {
+    const summary = readString(row.new_values, "summary");
+
+    if (summary) {
+      return summary;
+    }
+
     const event = readString(row.new_values, "event");
 
     if (event === "admin_view") {
@@ -198,6 +204,20 @@ export function formatAuditLogSummary(row: AuditLogRow & { user_email?: string |
 
     if (event === "ordered") {
       return `${actor} archived quote ${readString(row.new_values, "quote_name") ?? label} after placing an order on ${when}.`;
+    }
+
+    if (event === "admin_discount") {
+      const summary = readString(row.new_values, "summary");
+
+      if (summary) {
+        return summary;
+      }
+
+      const percent = readNumber(row.new_values, "admin_discount_percent");
+      const customerEmail = readString(row.new_values, "customer_email");
+      return `${actor} applied a ${percent ?? 0}% special discount on quote ${
+        readString(row.new_values, "quote_name") ?? label
+      }${customerEmail ? ` for ${customerEmail}` : ""} on ${when}.`;
     }
   }
 
@@ -300,6 +320,10 @@ export function formatAuditLogSummary(row: AuditLogRow & { user_email?: string |
     const newStatus = readString(row.new_values, "account_status");
 
     if (oldStatus && newStatus && oldStatus !== newStatus) {
+      if (newStatus === "deleted") {
+        return `${actor} archived ${readString(row.new_values, "email") ?? label} on ${when}.`;
+      }
+
       return `${actor} changed account status for ${label} from ${oldStatus} to ${newStatus} on ${when}.`;
     }
   }

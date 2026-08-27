@@ -91,7 +91,7 @@ export default function AdminQuotesPage() {
     return quote.companyName || quote.contactName || quote.customerEmail;
   }, [filterUserId, filteredQuotes]);
 
-  const totalValue = filteredQuotes.reduce((sum, quote) => sum + quote.totalAmount, 0);
+  const totalValue = filteredQuotes.reduce((sum, quote) => sum + quote.displayTotalAmount, 0);
 
   return (
     <AdminShell
@@ -217,7 +217,12 @@ export default function AdminQuotesPage() {
                         </td>
                         <td className={`${ui.tableCell} text-slate-800 dark:text-cream`}>{quote.itemCount}</td>
                         <td className={`${ui.tableCell} font-semibold text-brand`}>
-                          {formatPrice(quote.totalAmount)}
+                          {formatPrice(quote.displayTotalAmount)}
+                          {quote.adminDiscountPercent > 0 && (
+                            <span className="mt-1 block text-xs font-medium text-slate-500 dark:text-cream/60">
+                              {quote.adminDiscountPercent}% off
+                            </span>
+                          )}
                         </td>
                         <td className={`${ui.tableCell} text-slate-500 dark:text-cream/70`}>
                           {formatDate(quote.updatedAt)}

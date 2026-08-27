@@ -7,7 +7,11 @@ import { logImpersonatedOrderCreated } from "@/lib/impersonation-audit-log";
 import { logCustomerOrderCreated } from "@/lib/order-audit-log";
 import { parseCartLineItemsPayload } from "@/lib/cart-items";
 import { pool, query } from "@/lib/db";
-import { archiveMatchingQuotesForOrder } from "@/lib/quotes";
+import {
+  archiveMatchingQuotesForOrder,
+  getQuoteAdminDiscountForUser,
+  parseOptionalSourceQuoteId,
+} from "@/lib/quotes";
 import { mapOrderRows, ORDER_LIST_QUERY } from "@/lib/orders";
 import { markPromoCodeUsed, normalizePromoCodeInput } from "@/lib/promo-codes";
 import { resolveServerCartPricing } from "@/lib/server-cart-pricing";
@@ -55,17 +59,7 @@ function parseOrderBody(body: unknown) {
       ? candidate.shippingAddressId.trim()
       : null;
 
-  const rawSourceQuoteId = candidate.sourceQuoteId;
-  const parsedSourceQuoteId =
-    typeof rawSourceQuoteId === "number"
-      ? rawSourceQuoteId
-      : typeof rawSourceQuoteId === "string"
-        ? Number.parseInt(rawSourceQuoteId, 10)
-        : null;
-  const sourceQuoteId =
-    parsedSourceQuoteId && Number.isInteger(parsedSourceQuoteId) && parsedSourceQuoteId > 0
-      ? parsedSourceQuoteId
-      : null;
+  const sourceQuoteId = parseOptionalSourceQuoteId(candidate.sourceQuoteId);
 
   let shipping: CheckoutShippingSelection | null = null;
 
@@ -239,12 +233,17 @@ export async function POST(request: Request) {
       deliveryPostalCode = ownedAddress.zipCode;
     }
 
+    const quoteDiscountPercent = body.sourceQuoteId
+      ? await getQuoteAdminDiscountForUser(body.sourceQuoteId, auth.user!.id)
+      : 0;
+
     const pricing = await resolveServerCartPricing({
       items: body.items,
       userId: auth.user!.id,
       userRole: auth.user!.role,
       promoCode: body.promoCode,
       postalCode: deliveryPostalCode,
+      extraDiscountPercent: quoteDiscountPercent,
     });
 
     if ("error" in pricing) {

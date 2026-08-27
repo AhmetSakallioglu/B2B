@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS quotes (
   total_amount  NUMERIC(12, 2) NOT NULL CHECK (total_amount >= 0),
   status        VARCHAR(32)    NOT NULL DEFAULT 'draft'
                 CHECK (status IN ('draft', 'pending_approval', 'archived')),
+  admin_discount_percent NUMERIC(5, 2) NOT NULL DEFAULT 0
+                CHECK (admin_discount_percent >= 0 AND admin_discount_percent <= 100),
   created_at    TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );

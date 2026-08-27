@@ -4,7 +4,7 @@ import {
   fetchUserStatusAuditSnapshot,
   logUserStatusChange,
 } from "@/lib/admin-audit-log";
-import { bumpUserSessionVersion } from "@/lib/session-version";
+import { revokeUserSessions } from "@/lib/session-version";
 import { mapAdminUserDetail } from "@/lib/admin-users";
 import { ADMIN_USER_SELECT } from "@/lib/customer-tier";
 import { query } from "@/lib/db";
@@ -76,7 +76,8 @@ export async function POST(request: Request, context: RouteContext) {
       id: number;
       role: "customer" | "admin";
       account_status: AccountStatus;
-    }>("SELECT id, role, account_status FROM users WHERE id = $1", [userId]);
+      session_version: number;
+    }>("SELECT id, role, account_status, session_version FROM users WHERE id = $1", [userId]);
 
     if (existing.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -136,7 +137,7 @@ export async function POST(request: Request, context: RouteContext) {
       [userId, nextStatus, auth.user!.id]
     );
 
-    await bumpUserSessionVersion(userId);
+    await revokeUserSessions(userId, current.session_version);
 
     const newStatus = await fetchUserStatusAuditSnapshot(userId);
 

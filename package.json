@@ -17,6 +17,7 @@
     "db:session-version": "node scripts/run-session-version-migration.mjs",
     "db:quotes": "node scripts/run-quotes-migration.mjs",
     "db:quotes-archive": "node scripts/run-quotes-archive-migration.mjs",
+    "db:quotes-admin-discount": "node scripts/run-quotes-admin-discount-migration.mjs",
     "db:user-deleted-status": "node scripts/run-user-deleted-status-migration.mjs",
     "db:user-management-permissions": "node scripts/run-user-management-permissions-migration.mjs",
     "db:client-quotes": "node scripts/run-client-quotes-migration.mjs",

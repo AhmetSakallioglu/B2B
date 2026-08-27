@@ -34,6 +34,7 @@ const MIGRATION_FILES = [
   "db/quotes-migration.sql",
   "db/quotes-permissions-migration.sql",
   "db/quotes-archive-migration.sql",
+  "db/quotes-admin-discount-migration.sql",
   "db/promo-codes-migration.sql",
   "db/promo-crud-migration.sql",
   "db/cart-applied-promo-migration.sql",

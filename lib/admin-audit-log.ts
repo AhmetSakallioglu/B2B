@@ -162,6 +162,8 @@ export async function logUserCreated(params: {
   email: string;
   accountStatus: string;
 }) {
+  const adminEmail = await fetchUserEmail(params.adminUserId);
+
   await writeAuditLog({
     userId: params.adminUserId,
     action: "CREATE",
@@ -171,6 +173,7 @@ export async function logUserCreated(params: {
       email: params.email,
       account_status: params.accountStatus,
       event: "admin_create",
+      summary: `${adminEmail} created member ${params.email}.`,
     },
   });
 }
@@ -185,13 +188,34 @@ export async function logUserStatusChange(params: {
     return;
   }
 
+  const adminEmail = await fetchUserEmail(params.adminUserId);
+  const targetEmail = params.newStatus.email || params.oldStatus.email;
+  const from = params.oldStatus.account_status;
+  const to = params.newStatus.account_status;
+
+  const summary =
+    to === "deleted"
+      ? `${adminEmail} archived ${targetEmail}.`
+      : from === "deleted"
+        ? `${adminEmail} restored ${targetEmail}.`
+        : to === "rejected"
+          ? `${adminEmail} banned ${targetEmail}.`
+          : to === "approved"
+            ? `${adminEmail} approved ${targetEmail}.`
+            : `${adminEmail} changed account status for ${targetEmail} from ${from} to ${to}.`;
+
   await writeAuditLog({
     userId: params.adminUserId,
     action: "UPDATE",
     tableName: "users",
     recordId: params.targetUserId,
     oldValues: serializeRow(params.oldStatus),
-    newValues: serializeRow(params.newStatus),
+    newValues: {
+      ...serializeRow(params.newStatus),
+      event:
+        to === "deleted" ? "archive" : from === "deleted" ? "restore" : "status_change",
+      summary,
+    },
   });
 }
 
@@ -320,7 +344,7 @@ export async function logAdminPermissionsChange(params: {
       permissions: permissionsToAuditSnapshot(params.newPermissions),
       enabled,
       disabled,
-      summary: `${adminEmail} ${changeParts.join(" and ")} for admin ${targetEmail}.`,
+      summary: `${adminEmail} changed permissions for ${targetEmail}: ${changeParts.join("; ")}.`,
     },
   });
 }

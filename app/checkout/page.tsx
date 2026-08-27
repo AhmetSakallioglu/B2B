@@ -142,6 +142,7 @@ function CheckoutPageContent() {
           zipCode: normalizedZip,
           items: toCheckoutLineItems(items),
           promoCode: appliedPromo?.code ?? null,
+          sourceQuoteId,
         }),
       });
 
@@ -163,7 +164,7 @@ function CheckoutPageContent() {
     } finally {
       setIsPricingLoading(false);
     }
-  }, [appliedPromo?.code, items, profile, savedAddresses, shippingSelection, user]);
+  }, [appliedPromo?.code, items, profile, savedAddresses, shippingSelection, sourceQuoteId, user]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

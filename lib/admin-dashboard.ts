@@ -119,7 +119,7 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardData> {
             WHERE stock_status = 'out_of_stock'
           ) AS out_of_stock_count,
           (
-            SELECT COALESCE(SUM(total_amount), 0)::text FROM quotes
+            SELECT COALESCE(SUM(total_amount * (1 - COALESCE(admin_discount_percent, 0) / 100.0)), 0)::text FROM quotes
             WHERE status IN ${OPEN_QUOTE_STATUS_SQL}
           ) AS potential_pipeline_revenue,
           (

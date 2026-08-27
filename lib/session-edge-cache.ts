@@ -35,15 +35,24 @@ export async function cacheEdgeSessionState(
   }
 }
 
-export async function invalidateEdgeSessionState(userId: number) {
+export async function invalidateEdgeSessionState(
+  userId: number,
+  sessionVersion?: number | null
+) {
   const client = await getRedisKvClient();
 
   if (!client) {
     return;
   }
 
+  const version = sessionVersion && sessionVersion > 0 ? sessionVersion : 1;
+
   try {
-    await client.set(sessionEdgeKey(userId), "0:0", { ex: 1 });
+    await client.set(
+      sessionEdgeKey(userId),
+      buildSessionEdgeCacheValue(version, false),
+      { ex: SESSION_EDGE_TTL_SECONDS }
+    );
   } catch (error) {
     console.warn("Failed to invalidate edge session state in Redis.", error);
   }

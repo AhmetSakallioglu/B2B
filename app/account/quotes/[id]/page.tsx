@@ -240,8 +240,13 @@ export default function AccountQuoteDetailPage() {
               </div>
               <div className="text-right">
                 <p className="text-3xl font-bold tracking-tight text-brand">
-                  {formatPrice(quote.totalAmount)}
+                  {formatPrice(quote.displayTotalAmount)}
                 </p>
+                {quote.adminDiscountPercent > 0 && (
+                  <p className={`mt-1 text-sm ${ui.bodyMuted}`}>
+                    {quote.adminDiscountPercent}% special discount · was {formatPrice(quote.totalAmount)}
+                  </p>
+                )}
                 {quoteData.price_changed && quoteData.old_total_amount !== undefined && (
                   <p className={`mt-1 text-sm line-through ${ui.bodyMuted}`}>
                     Was {formatPrice(quoteData.old_total_amount)}

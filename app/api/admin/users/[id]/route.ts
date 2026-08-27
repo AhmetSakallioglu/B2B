@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAnyAdminPermission, requireSuperAdmin } from "@/lib/api-auth";
-import { bumpUserSessionVersion } from "@/lib/session-version";
+import { revokeUserSessions } from "@/lib/session-version";
 import { validateAdminUserUpdateAuthorization } from "@/lib/admin-user-update-auth";
 import { ensureAdminPermissionsRow } from "@/lib/admin-permissions";
 import {
@@ -92,6 +92,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       id: number;
       role: "customer" | "admin";
       account_status: AccountStatus;
+      session_version: number;
       tier_id: number | null;
       company_name: string | null;
       contact_name: string | null;
@@ -109,6 +110,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           id,
           role,
           account_status,
+          session_version,
           tier_id,
           company_name,
           contact_name,
@@ -250,7 +252,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     if (accountStatusChanged || nextRole !== current.role) {
-      await bumpUserSessionVersion(userId);
+      await revokeUserSessions(userId, current.session_version);
     }
 
     const newTier = await fetchUserTierAuditSnapshot(userId);

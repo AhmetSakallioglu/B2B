@@ -98,8 +98,13 @@ export function QuoteSummaryCard({
             Quote total
           </p>
           <p className="mt-1 text-2xl font-bold tracking-tight text-brand">
-            {formatPrice(quote.totalAmount)}
+            {formatPrice(quote.displayTotalAmount)}
           </p>
+          {quote.adminDiscountPercent > 0 && (
+            <p className="mt-1 text-xs text-slate-500 dark:text-cream/60">
+              {quote.adminDiscountPercent}% admin discount · was {formatPrice(quote.totalAmount)}
+            </p>
+          )}
         </div>
       </div>
 

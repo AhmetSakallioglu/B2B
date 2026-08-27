@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/api-auth";
 import { parseCartLineItemsPayload } from "@/lib/cart-items";
 import { roundQuoteTotal } from "@/lib/cart-items";
 import { normalizePromoCodeInput } from "@/lib/promo-codes";
+import { getQuoteAdminDiscountForUser, parseOptionalSourceQuoteId } from "@/lib/quotes";
 import { resolveServerCartPricing } from "@/lib/server-cart-pricing";
 import { resolveShippingQuote } from "@/lib/shipping-zones";
 import { normalizeShippingZip } from "@/lib/shipping-zip";
@@ -38,6 +39,10 @@ export async function POST(request: Request) {
       : normalizePromoCodeInput(body.promoCode);
 
   if (items && items.length > 0) {
+    const sourceQuoteId = parseOptionalSourceQuoteId(body.sourceQuoteId);
+    const extraDiscountPercent = sourceQuoteId
+      ? await getQuoteAdminDiscountForUser(sourceQuoteId, auth.user!.id)
+      : 0;
     const pricing = await resolveServerCartPricing({
       items,
       userId: auth.user!.id,
@@ -45,6 +50,7 @@ export async function POST(request: Request) {
       promoCode,
       postalCode: normalizedZip,
       requireAvailability: false,
+      extraDiscountPercent,
     });
 
     if ("error" in pricing) {

@@ -1,5 +1,6 @@
 import { parseCartLineItemsPayload } from "@/lib/cart-items";
 import { sanitizePlainText } from "@/lib/input-sanitization";
+import { applyDiscountPercent } from "@/lib/pricing";
 import type { CartLineInput } from "@/lib/cart-items";
 
 export const QUOTE_NAME_MAX_LENGTH = 120;
@@ -12,6 +13,21 @@ export type OpenQuoteStatus = (typeof OPEN_QUOTE_STATUSES)[number];
 
 export function isArchivedQuoteStatus(status: QuoteStatus) {
   return status === "archived";
+}
+
+export function quoteDisplayTotal(totalAmount: number, adminDiscountPercent = 0) {
+  return applyDiscountPercent(totalAmount, adminDiscountPercent);
+}
+
+export function parseQuoteAdminDiscountPercent(value: unknown) {
+  const parsed =
+    typeof value === "number" ? value : Number.parseFloat(String(value ?? ""));
+
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+    return null;
+  }
+
+  return Math.round(parsed * 100) / 100;
 }
 
 export function sanitizeQuoteName(value: unknown): string | null {

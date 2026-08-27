@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useState } from "react";
+import { AdminAlert, AdminButton, AdminFieldLabel, AdminInput } from "@/components/admin/admin-ui";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { ArrowLeftIcon } from "@/components/ui/Icon";
@@ -25,6 +26,9 @@ export default function AdminQuoteDetailPage() {
   const [quote, setQuote] = useState<AdminQuoteDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [discountPercent, setDiscountPercent] = useState("0");
+  const [isSavingDiscount, setIsSavingDiscount] = useState(false);
 
   const loadQuote = useCallback(async () => {
     if (Number.isNaN(quoteId)) {
@@ -45,6 +49,7 @@ export default function AdminQuoteDetailPage() {
 
       const data = (await response.json()) as { quote: AdminQuoteDetail };
       setQuote(data.quote);
+      setDiscountPercent(String(data.quote.adminDiscountPercent ?? 0));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load quote");
     } finally {
@@ -55,6 +60,42 @@ export default function AdminQuoteDetailPage() {
   useDeferredEffect(() => {
     void loadQuote();
   }, [loadQuote]);
+
+  const applySpecialDiscount = async () => {
+    if (!quote) {
+      return;
+    }
+
+    setIsSavingDiscount(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/quotes/${quote.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ discountPercent: Number.parseFloat(discountPercent) }),
+      });
+
+      const data = (await response.json()) as { quote?: AdminQuoteDetail; error?: string };
+
+      if (!response.ok || !data.quote) {
+        throw new Error(data.error ?? "Failed to apply special discount");
+      }
+
+      setQuote(data.quote);
+      setDiscountPercent(String(data.quote.adminDiscountPercent ?? 0));
+      setMessage(
+        data.quote.adminDiscountPercent > 0
+          ? `Special ${data.quote.adminDiscountPercent}% discount applied.`
+          : "Special discount removed."
+      );
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Failed to apply special discount");
+    } finally {
+      setIsSavingDiscount(false);
+    }
+  };
 
   return (
     <AdminShell
@@ -77,12 +118,15 @@ export default function AdminQuoteDetailPage() {
 
       {isLoading ? (
         <LoadingState label="Loading quote..." minHeight="min-h-[320px]" spinnerSize="lg" />
-      ) : error || !quote ? (
+      ) : !quote ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-8 text-center dark:border-red-900/40 dark:bg-red-950/30">
           <p className="text-red-700 dark:text-red-300">{error ?? "Quote not found"}</p>
         </div>
       ) : (
         <div className="space-y-6">
+          {message && <AdminAlert tone="success">{message}</AdminAlert>}
+          {error && <AdminAlert tone="error">{error}</AdminAlert>}
+
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className={`p-5 ${ui.adminCard}`}>
               <p className={ui.bodyMuted}>Dealer</p>
@@ -94,8 +138,13 @@ export default function AdminQuoteDetailPage() {
             <div className={`border-brand/30 bg-brand-light/30 p-5 ${ui.adminCard}`}>
               <p className="text-sm font-medium text-brand">Total amount</p>
               <p className="mt-1 text-3xl font-bold tracking-tight text-brand">
-                {formatPrice(quote.totalAmount)}
+                {formatPrice(quote.displayTotalAmount)}
               </p>
+              {quote.adminDiscountPercent > 0 && (
+                <p className={`mt-1 text-xs ${ui.bodyMuted}`}>
+                  {quote.adminDiscountPercent}% special discount · list {formatPrice(quote.totalAmount)}
+                </p>
+              )}
             </div>
             <div className={`p-5 ${ui.adminCard}`}>
               <p className={ui.bodyMuted}>Status</p>
@@ -113,6 +162,35 @@ export default function AdminQuoteDetailPage() {
               </p>
             </div>
           </div>
+
+          <section className={`p-5 ${ui.adminCard}`}>
+            <h2 className={ui.heading3}>Special discount</h2>
+            <p className={`mt-1 ${ui.bodyMuted}`}>
+              Apply an extra percent off this quote. The dealer keeps the discounted total, and
+              checkout from this quote uses the same discount.
+            </p>
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              <label className="block w-40 space-y-1.5">
+                <AdminFieldLabel>Discount %</AdminFieldLabel>
+                <AdminInput
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={discountPercent}
+                  onChange={(event) => setDiscountPercent(event.target.value)}
+                />
+              </label>
+              <AdminButton
+                type="button"
+                variant="primary"
+                disabled={isSavingDiscount}
+                onClick={() => void applySpecialDiscount()}
+              >
+                {isSavingDiscount ? "Saving..." : "Apply discount"}
+              </AdminButton>
+            </div>
+          </section>
 
           <section className={`overflow-hidden ${ui.adminCard}`}>
             <div className="border-b border-slate-200/80 bg-slate-50/80 px-5 py-4 dark:border-zinc-700/50 dark:bg-navy-hover/30">

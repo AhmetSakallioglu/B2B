@@ -11,6 +11,10 @@ export function databaseSetupHint(error: unknown) {
   const pgError = error as PostgresErrorLike;
   const message = pgError.message ?? "";
 
+  if (message.includes("admin_discount_percent")) {
+    return " Run: npm run db:quotes-admin-discount — then restart the app.";
+  }
+
   if (pgError.code === "23514" && message.includes("quotes_status_check")) {
     return " Run: npm run db:quotes-archive — then restart the app.";
   }

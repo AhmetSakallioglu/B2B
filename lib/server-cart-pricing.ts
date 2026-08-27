@@ -76,6 +76,7 @@ export async function resolveServerCartPricing(params: {
   requireAvailability?: boolean;
   promoCode?: string | null;
   postalCode?: string | null;
+  extraDiscountPercent?: number;
 }): Promise<ServerCartPricingResult | ServerCartPricingError> {
   const requireAvailability = params.requireAvailability ?? true;
 
@@ -202,6 +203,18 @@ export async function resolveServerCartPricing(params: {
   }
 
   const discountedSubtotal = roundQuoteTotal(Math.max(0, subtotal - promoDiscount));
+  const extraDiscountPercent =
+    typeof params.extraDiscountPercent === "number" &&
+    Number.isFinite(params.extraDiscountPercent) &&
+    params.extraDiscountPercent > 0
+      ? Math.min(params.extraDiscountPercent, 100)
+      : 0;
+  const extraDiscount = extraDiscountPercent
+    ? roundQuoteTotal(Math.max(0, discountedSubtotal * (extraDiscountPercent / 100)))
+    : 0;
+  const discountedSubtotalAfterQuote = roundQuoteTotal(
+    Math.max(0, discountedSubtotal - extraDiscount)
+  );
 
   const normalizedPostalCode = params.postalCode
     ? normalizeShippingZip(params.postalCode)
@@ -215,7 +228,10 @@ export async function resolveServerCartPricing(params: {
   let shippingNotice: string | null = null;
 
   if (normalizedPostalCode) {
-    const shippingQuote = await resolveShippingQuote(normalizedPostalCode, discountedSubtotal);
+    const shippingQuote = await resolveShippingQuote(
+      normalizedPostalCode,
+      discountedSubtotalAfterQuote
+    );
 
     if ("error" in shippingQuote) {
       return { error: shippingQuote.error, status: 400 };
@@ -229,7 +245,7 @@ export async function resolveServerCartPricing(params: {
     shippingNotice = shippingQuote.notice;
   }
 
-  const taxBase = roundCurrency(Math.max(0, discountedSubtotal + shippingAmount));
+  const taxBase = roundCurrency(Math.max(0, discountedSubtotalAfterQuote + shippingAmount));
   const taxBreakdown = calculateTexasSalesTax(taxBase, taxStatus);
 
   const totalAmount = taxBreakdown.totalAmount;
@@ -245,7 +261,7 @@ export async function resolveServerCartPricing(params: {
     tierName,
     tierDiscountPercent,
     tierDiscountAmount,
-    promoDiscount,
+    promoDiscount: roundQuoteTotal(promoDiscount + extraDiscount),
     taxableSubtotal: taxBreakdown.taxableSubtotal,
     taxRate: taxBreakdown.taxRate,
     taxAmount: taxBreakdown.taxAmount,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireCustomerSession } from "@/lib/api-auth";
 import { databaseSetupHint } from "@/lib/db-setup-hints";
 import { checkQuotePriceFreshness } from "@/lib/quote-price-freshness";
+import { quoteDisplayTotal } from "@/lib/quote-validation";
 import { getQuoteForUser, setQuoteArchivedForUser } from "@/lib/quotes";
 
 type RouteContext = {
@@ -50,6 +51,10 @@ export async function GET(_request: Request, context: RouteContext) {
         ...quote,
         items: freshness.updatedItems,
         totalAmount: freshness.newTotalAmount,
+        displayTotalAmount: quoteDisplayTotal(
+          freshness.newTotalAmount,
+          quote.adminDiscountPercent
+        ),
       },
       price_changed: true,
       old_total_amount: freshness.oldTotalAmount,
