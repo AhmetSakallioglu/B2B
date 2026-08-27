@@ -13,9 +13,8 @@ import {
 import { mapAdminUserDetail, mapAdminUserTierView, parseUpdateAdminUserBody } from "@/lib/admin-users";
 import { ADMIN_USER_SELECT, getCustomerTierById } from "@/lib/customer-tier";
 import { query } from "@/lib/db";
-import {
-  hasAnyAdminPermission,
-} from "@/types/admin-permissions";
+import type { AccountStatus } from "@/lib/user-approval";
+import { USER_DIRECTORY_PERMISSIONS, hasAnyAdminPermission } from "@/types/admin-permissions";
 import type { AdminUserRow } from "@/types/customer-tier";
 
 type RouteContext = {
@@ -23,12 +22,7 @@ type RouteContext = {
 };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const auth = await requireAnyAdminPermission([
-    "can_approve_users",
-    "can_ban_users",
-    "can_view_user_tiers",
-    "can_change_user_tier",
-  ]);
+  const auth = await requireAnyAdminPermission(USER_DIRECTORY_PERMISSIONS);
 
   if (auth.response) {
     return auth.response;
@@ -60,6 +54,8 @@ export async function GET(_request: Request, context: RouteContext) {
     const canViewSensitivePii = hasAnyAdminPermission(auth.permissions!, [
       "can_approve_users",
       "can_ban_users",
+      "can_create_users",
+      "can_delete_users",
     ]);
 
     return NextResponse.json({
@@ -72,12 +68,7 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const auth = await requireAnyAdminPermission([
-    "can_approve_users",
-    "can_ban_users",
-    "can_view_user_tiers",
-    "can_change_user_tier",
-  ]);
+  const auth = await requireAnyAdminPermission(USER_DIRECTORY_PERMISSIONS);
 
   if (auth.response) {
     return auth.response;
@@ -100,7 +91,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const existing = await query<{
       id: number;
       role: "customer" | "admin";
-      account_status: "pending" | "approved" | "rejected";
+      account_status: AccountStatus;
       tier_id: number | null;
       company_name: string | null;
       contact_name: string | null;

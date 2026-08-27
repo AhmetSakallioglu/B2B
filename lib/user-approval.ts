@@ -1,18 +1,22 @@
 import type { UserRole } from "@/types/auth";
 
-export type AccountStatus = "pending" | "approved" | "rejected";
+export type AccountStatus = "pending" | "approved" | "rejected" | "deleted";
+export type AccountAccessAction = "approve" | "reject" | "delete" | "restore";
 
 export const ACCOUNT_STATUS_LABELS: Record<AccountStatus, string> = {
   pending: "Pending approval",
   approved: "Approved",
   rejected: "Banned",
+  deleted: "Deleted",
 };
 
-export const LOGIN_STATUS_MESSAGES: Record<"pending" | "rejected", string> = {
+export const LOGIN_STATUS_MESSAGES: Record<"pending" | "rejected" | "deleted", string> = {
   pending:
     "Your account is pending approval. You will be able to sign in once an administrator activates your account.",
   rejected:
     "Your account has been suspended. Please contact support if you believe this is an error.",
+  deleted:
+    "This account has been deleted. Please contact support if you believe this is an error.",
 };
 
 export function getApprovalConfirmMessage(
@@ -79,23 +83,67 @@ export function isAccountUsable(role: UserRole, accountStatus: AccountStatus) {
 }
 
 export function parseAccountStatus(value: unknown): AccountStatus | null {
-  if (value === "pending" || value === "approved" || value === "rejected") {
+  if (value === "pending" || value === "approved" || value === "rejected" || value === "deleted") {
     return value;
   }
 
   return null;
 }
 
-export function parseApprovalAction(body: unknown) {
+export function parseApprovalAction(body: unknown): AccountAccessAction | null {
   if (!body || typeof body !== "object") {
     return null;
   }
 
   const action = (body as Record<string, unknown>).action;
 
-  if (action === "approve" || action === "reject") {
+  if (action === "approve" || action === "reject" || action === "delete" || action === "restore") {
     return action;
   }
 
   return null;
+}
+
+export function getAccountAccessConfirmDialog(
+  currentStatus: AccountStatus,
+  action: AccountAccessAction
+) {
+  if (action === "delete") {
+    return {
+      title: "Delete this member?",
+      description:
+        "They will stay in the system as a Deleted user, cannot sign in, and will be hidden from default member lists. You can restore them later.",
+      confirmLabel: "Delete member",
+      cancelLabel: "Keep account",
+      tone: "danger" as const,
+    };
+  }
+
+  if (action === "restore") {
+    return {
+      title: "Restore this member?",
+      description:
+        "The account will return as pending approval. They will not be able to sign in until an administrator approves them.",
+      confirmLabel: "Restore member",
+      cancelLabel: "Keep deleted",
+      tone: "default" as const,
+    };
+  }
+
+  return getApprovalConfirmDialog(currentStatus, action);
+}
+
+export function getAccountAccessSuccessMessage(
+  currentStatus: AccountStatus,
+  action: AccountAccessAction
+) {
+  if (action === "delete") {
+    return "Member deleted. The account remains in the system as a Deleted user.";
+  }
+
+  if (action === "restore") {
+    return "Member restored as pending approval.";
+  }
+
+  return getApprovalSuccessMessage(currentStatus, action);
 }

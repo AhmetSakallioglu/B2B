@@ -7,6 +7,7 @@ import { logImpersonatedOrderCreated } from "@/lib/impersonation-audit-log";
 import { logCustomerOrderCreated } from "@/lib/order-audit-log";
 import { parseCartLineItemsPayload } from "@/lib/cart-items";
 import { pool, query } from "@/lib/db";
+import { archiveMatchingQuotesForOrder } from "@/lib/quotes";
 import { mapOrderRows, ORDER_LIST_QUERY } from "@/lib/orders";
 import { markPromoCodeUsed, normalizePromoCodeInput } from "@/lib/promo-codes";
 import { resolveServerCartPricing } from "@/lib/server-cart-pricing";
@@ -54,6 +55,18 @@ function parseOrderBody(body: unknown) {
       ? candidate.shippingAddressId.trim()
       : null;
 
+  const rawSourceQuoteId = candidate.sourceQuoteId;
+  const parsedSourceQuoteId =
+    typeof rawSourceQuoteId === "number"
+      ? rawSourceQuoteId
+      : typeof rawSourceQuoteId === "string"
+        ? Number.parseInt(rawSourceQuoteId, 10)
+        : null;
+  const sourceQuoteId =
+    parsedSourceQuoteId && Number.isInteger(parsedSourceQuoteId) && parsedSourceQuoteId > 0
+      ? parsedSourceQuoteId
+      : null;
+
   let shipping: CheckoutShippingSelection | null = null;
 
   if (candidate.shipping && typeof candidate.shipping === "object") {
@@ -91,7 +104,7 @@ function parseOrderBody(body: unknown) {
     }
   }
 
-  return { items, promoCode, shippingPostalCode, shippingAddressId, shipping };
+  return { items, promoCode, shippingPostalCode, shippingAddressId, shipping, sourceQuoteId };
 }
 
 export async function GET() {
@@ -341,6 +354,16 @@ export async function POST(request: Request) {
     await client.query("COMMIT");
     await clearUserCart(auth.user!.id);
     await markAbandonedCartRecoveryCompleted(auth.user!.id);
+
+    try {
+      await archiveMatchingQuotesForOrder({
+        userId: auth.user!.id,
+        items: pricedItems.map((item) => ({ id: item.id, quantity: item.quantity })),
+        sourceQuoteId: body.sourceQuoteId,
+      });
+    } catch (archiveError) {
+      console.error("Failed to archive quotes after order:", archiveError);
+    }
 
     if (placedByAdminId) {
       await logImpersonatedOrderCreated({

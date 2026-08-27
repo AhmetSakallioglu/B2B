@@ -15,6 +15,7 @@ const root = process.cwd();
 const MIGRATION_FILES = [
   "db/user-profile-migration.sql",
   "db/user-approval-migration.sql",
+  "db/user-deleted-status-migration.sql",
   "db/dealer-application-migration.sql",
   "db/dealer-tax-status-migration.sql",
   "db/customer-tiers-migration.sql",
@@ -29,8 +30,10 @@ const MIGRATION_FILES = [
   "db/catalog-bulk-status-migration.sql",
   "db/session-version-migration.sql",
   "db/admin-permissions-migration.sql",
+  "db/user-management-permissions-migration.sql",
   "db/quotes-migration.sql",
   "db/quotes-permissions-migration.sql",
+  "db/quotes-archive-migration.sql",
   "db/promo-codes-migration.sql",
   "db/promo-crud-migration.sql",
   "db/cart-applied-promo-migration.sql",

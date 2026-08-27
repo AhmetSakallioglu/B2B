@@ -139,7 +139,7 @@ JOIN categories c     ON c.id = sc.category_id;
 
 -- Users & authentication
 CREATE TYPE user_role AS ENUM ('customer', 'admin');
-CREATE TYPE account_status AS ENUM ('pending', 'approved', 'rejected');
+CREATE TYPE account_status AS ENUM ('pending', 'approved', 'rejected', 'deleted');
 CREATE TYPE dealer_tax_status AS ENUM ('taxable', 'exempt');
 
 CREATE TABLE customer_tiers (

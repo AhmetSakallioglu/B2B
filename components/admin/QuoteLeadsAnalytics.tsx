@@ -134,6 +134,9 @@ export function QuoteLeadsAnalytics() {
 
   return (
     <div className={ui.sectionStack}>
+      <p className={`text-sm ${ui.bodyMuted}`}>
+        Archived quotes are excluded from these statistics.
+      </p>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <div className={`p-5 ${ui.adminCard}`}>
           <p className="text-sm font-medium text-slate-500 dark:text-cream/70">Active quote customers</p>

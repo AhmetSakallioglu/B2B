@@ -6,6 +6,7 @@ import type {
 } from "@/types/customer-tier";
 import { mapAdminUserTier } from "@/lib/customer-tier";
 import { parseAccountStatus } from "@/lib/user-approval";
+import { validatePassword } from "@/lib/password-policy";
 import { isUserGroupTag } from "@/types/user-segmentation";
 
 export function mapAdminUserSummary(row: AdminUserRow): AdminUserSummary {
@@ -118,6 +119,72 @@ export function parseUpdateAdminUserBody(body: unknown) {
 }
 
 export type UpdateAdminUserBody = NonNullable<ReturnType<typeof parseUpdateAdminUserBody>>;
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+export function parseCreateAdminUserBody(body: unknown) {
+  if (!body || typeof body !== "object") {
+    return { error: "Invalid member payload" as const };
+  }
+
+  const candidate = body as Record<string, unknown>;
+  const trim = (value: unknown, maxLength: number) => {
+    if (typeof value !== "string") {
+      return "";
+    }
+
+    return value.trim().slice(0, maxLength);
+  };
+
+  const email = trim(candidate.email, 255).toLowerCase();
+
+  if (!email || !isValidEmail(email)) {
+    return { error: "A valid email is required" as const };
+  }
+
+  const password =
+    typeof candidate.password === "string" && candidate.password.length > 0
+      ? candidate.password
+      : null;
+
+  if (password) {
+    const passwordError = validatePassword(password);
+
+    if (passwordError) {
+      return { error: passwordError };
+    }
+  }
+
+  const accountStatus = parseAccountStatus(candidate.accountStatus);
+  const nextStatus = accountStatus === "approved" ? "approved" : "pending";
+
+  if (accountStatus === "rejected" || accountStatus === "deleted") {
+    return { error: "New members cannot be created as banned or deleted" as const };
+  }
+
+  return {
+    data: {
+      email,
+      password,
+      accountStatus: nextStatus,
+      companyName: trim(candidate.companyName, 150),
+      contactName: trim(candidate.contactName, 150),
+      phone: trim(candidate.phone, 50),
+      addressLine1: trim(candidate.addressLine1, 255),
+      addressLine2: trim(candidate.addressLine2, 255),
+      city: trim(candidate.city, 100),
+      state: trim(candidate.state, 100),
+      postalCode: trim(candidate.postalCode, 30),
+      country: trim(candidate.country, 100) || "United States",
+    },
+  };
+}
+
+export type CreateAdminUserBody = NonNullable<
+  Extract<ReturnType<typeof parseCreateAdminUserBody>, { data: unknown }>["data"]
+>;
 
 export function parseUpsertCustomerTierBody(body: unknown) {
   if (!body || typeof body !== "object") {

@@ -5,12 +5,13 @@ import {
   PERMISSION_FORBIDDEN_MESSAGE,
   type AdminPermissions,
 } from "@/types/admin-permissions";
+import type { AccountStatus } from "@/lib/user-approval";
 import type { UpdateAdminUserBody } from "@/lib/admin-users";
 
 type ExistingUser = {
   id: number;
   role: "customer" | "admin";
-  account_status: "pending" | "approved" | "rejected";
+  account_status: AccountStatus;
   tier_id: number | null;
   group_tag: string;
   company_name: string | null;
@@ -36,6 +37,20 @@ function isBanTransition(
   to: ExistingUser["account_status"]
 ) {
   return to === "rejected" && from !== "rejected";
+}
+
+function isDeleteTransition(
+  from: ExistingUser["account_status"],
+  to: ExistingUser["account_status"]
+) {
+  return to === "deleted" && from !== "deleted";
+}
+
+function isRestoreTransition(
+  from: ExistingUser["account_status"],
+  to: ExistingUser["account_status"]
+) {
+  return from === "deleted" && to !== "deleted";
 }
 
 function hasProfileFieldChanges(body: UpdateAdminUserBody, existing: ExistingUser) {
@@ -106,8 +121,24 @@ export function validateAdminUserUpdateAuthorization(
     }
 
     if (
+      isDeleteTransition(existing.account_status, nextAccountStatus) &&
+      !hasAdminPermission(permissions, "can_delete_users")
+    ) {
+      return NextResponse.json({ error: PERMISSION_FORBIDDEN_MESSAGE }, { status: 403 });
+    }
+
+    if (
+      isRestoreTransition(existing.account_status, nextAccountStatus) &&
+      !hasAnyAdminPermission(permissions, ["can_delete_users", "can_approve_users"])
+    ) {
+      return NextResponse.json({ error: PERMISSION_FORBIDDEN_MESSAGE }, { status: 403 });
+    }
+
+    if (
       !isApprovalTransition(existing.account_status, nextAccountStatus) &&
-      !isBanTransition(existing.account_status, nextAccountStatus)
+      !isBanTransition(existing.account_status, nextAccountStatus) &&
+      !isDeleteTransition(existing.account_status, nextAccountStatus) &&
+      !isRestoreTransition(existing.account_status, nextAccountStatus)
     ) {
       return NextResponse.json(
         { error: "This account status change is not allowed" },
@@ -122,7 +153,12 @@ export function validateAdminUserUpdateAuthorization(
 
   if (
     profileChanged &&
-    !hasAnyAdminPermission(permissions, ["can_approve_users", "can_ban_users"])
+    !hasAnyAdminPermission(permissions, [
+      "can_approve_users",
+      "can_ban_users",
+      "can_create_users",
+      "can_delete_users",
+    ])
   ) {
     return NextResponse.json({ error: PERMISSION_FORBIDDEN_MESSAGE }, { status: 403 });
   }

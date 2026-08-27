@@ -8,15 +8,17 @@ import {
   AdminButton,
   AdminLink,
 } from "@/components/admin/admin-ui";
-import { SearchIcon } from "@/components/ui/Icon";
+import { SearchIcon, UserPlusIcon } from "@/components/ui/Icon";
 import { AdminPermissionsModal } from "@/components/admin/AdminPermissionsModal";
+import { AdminCreateUserModal } from "@/components/admin/AdminCreateUserModal";
 import { ImpersonateCustomerButton } from "@/components/admin/ImpersonateCustomerButton";
 import { refreshAdminNotifications } from "@/components/admin/AdminNotificationsProvider";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { createEmptyAdminPermissions, type AdminPermissions } from "@/types/admin-permissions";
-import { ACCOUNT_STATUS_LABELS, getApprovalConfirmDialog, getApprovalSuccessMessage } from "@/lib/user-approval";
+import { ACCOUNT_STATUS_LABELS, getAccountAccessConfirmDialog, getAccountAccessSuccessMessage } from "@/lib/user-approval";
+import type { AccountAccessAction } from "@/lib/user-approval";
 import { formatDate } from "@/lib/order-display";
 import { ui } from "@/lib/ui-classes";
 import type { AdminUserSummary } from "@/types/customer-tier";
@@ -26,11 +28,13 @@ const STATUS_FILTERS = [
   { value: "pending", label: "Pending approval" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Banned" },
+  { value: "deleted", label: "Deleted" },
 ] as const;
 
 function statusTone(status: AdminUserSummary["accountStatus"]) {
   if (status === "pending") return "brand" as const;
   if (status === "approved") return "success" as const;
+  if (status === "deleted") return "neutral" as const;
   return "danger" as const;
 }
 
@@ -47,7 +51,7 @@ export default function AdminUsersPage() {
 
     const status = new URLSearchParams(window.location.search).get("status");
 
-    if (status === "pending" || status === "approved" || status === "rejected") {
+    if (status === "pending" || status === "approved" || status === "rejected" || status === "deleted") {
       return status;
     }
 
@@ -62,6 +66,8 @@ export default function AdminUsersPage() {
   );
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [permissionsTarget, setPermissionsTarget] = useState<AdminUserSummary | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [deletedCount, setDeletedCount] = useState(0);
 
   const loadUsers = useCallback(async (query: string, status: string) => {
     setIsLoading(true);
@@ -85,8 +91,12 @@ export default function AdminUsersPage() {
         throw new Error("Failed to load users");
       }
 
-      const data = (await response.json()) as { users: AdminUserSummary[] };
+      const data = (await response.json()) as {
+        users: AdminUserSummary[];
+        deletedCount?: number;
+      };
       setUsers(data.users);
+      setDeletedCount(data.deletedCount ?? 0);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load users");
     } finally {
@@ -121,11 +131,8 @@ export default function AdminUsersPage() {
     return () => window.clearTimeout(timeout);
   }, [loadUsers, searchQuery, statusFilter]);
 
-  const handleApproval = async (
-    member: AdminUserSummary,
-    action: "approve" | "reject"
-  ) => {
-    const confirmed = await confirm(getApprovalConfirmDialog(member.accountStatus, action));
+  const handleAccessAction = async (member: AdminUserSummary, action: AccountAccessAction) => {
+    const confirmed = await confirm(getAccountAccessConfirmDialog(member.accountStatus, action));
 
     if (!confirmed) {
       return;
@@ -148,7 +155,7 @@ export default function AdminUsersPage() {
         throw new Error(data.error ?? "Failed to update account access");
       }
 
-      setMessage(getApprovalSuccessMessage(member.accountStatus, action));
+      setMessage(getAccountAccessSuccessMessage(member.accountStatus, action));
 
       if (member.accountStatus === "pending") {
         refreshAdminNotifications();
@@ -179,13 +186,19 @@ export default function AdminUsersPage() {
     <AdminShell
       wide
       title="User Management"
-      subtitle="Review new registrations, approve accounts, and manage customer tiers"
+      subtitle="Review registrations, add members with incomplete profiles, and manage account access"
     >
       <div className="space-y-6">
         {message && <AdminAlert tone="success">{message}</AdminAlert>}
         {error && <AdminAlert tone="error">{error}</AdminAlert>}
 
         <div className="flex flex-wrap items-center gap-3">
+          {(currentPermissions.isSuperAdmin || currentPermissions.can_create_users) && (
+            <button type="button" onClick={() => setIsCreateOpen(true)} className={ui.btnPrimary}>
+              <UserPlusIcon size={15} />
+              Add member
+            </button>
+          )}
           {(currentPermissions.isSuperAdmin ||
             currentPermissions.can_approve_tax_exemption) && (
             <Link href="/admin/users/tax-exemptions" className={ui.btnSecondary}>
@@ -194,7 +207,7 @@ export default function AdminUsersPage() {
           )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
           <div className={`p-5 ${ui.adminCard}`}>
             <p className="text-sm font-medium text-slate-500 dark:text-cream/70">Users shown</p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-cream">{stats.total}</p>
@@ -207,6 +220,14 @@ export default function AdminUsersPage() {
             <p className="text-sm font-medium text-slate-500 dark:text-cream/70">Banned</p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-red-700 dark:text-red-300">{stats.banned}</p>
           </div>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("deleted")}
+            className={`p-5 text-left ${ui.adminCard}`}
+          >
+            <p className="text-sm font-medium text-slate-500 dark:text-cream/70">Deleted</p>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-cream">{deletedCount}</p>
+          </button>
           <div className={`p-5 ${ui.adminCard}`}>
             <p className="text-sm font-medium text-slate-500 dark:text-cream/70">Admins</p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-cream">{stats.admins}</p>
@@ -328,24 +349,55 @@ export default function AdminUsersPage() {
                       </td>
                       <td className={ui.tableCell}>
                         <div className="flex flex-wrap gap-2">
-                          {user.role === "customer" && user.accountStatus !== "approved" && (
+                          {user.role === "customer" &&
+                            user.accountStatus !== "approved" &&
+                            user.accountStatus !== "deleted" && (
                             <AdminButton
                               type="button"
                               variant="primary"
                               disabled={isSaving}
-                              onClick={() => handleApproval(user, "approve")}
+                              onClick={() => void handleAccessAction(user, "approve")}
                             >
                               {user.accountStatus === "rejected" ? "Reinstate" : "Approve"}
                             </AdminButton>
                           )}
-                          {user.role === "customer" && user.accountStatus !== "rejected" && (
+                          {user.role === "customer" &&
+                            user.accountStatus !== "rejected" &&
+                            user.accountStatus !== "deleted" && (
                             <AdminButton
                               type="button"
                               variant="danger"
                               disabled={isSaving}
-                              onClick={() => handleApproval(user, "reject")}
+                              onClick={() => void handleAccessAction(user, "reject")}
                             >
                               {user.accountStatus === "approved" ? "Ban" : "Reject"}
+                            </AdminButton>
+                          )}
+                          {user.role === "customer" &&
+                            user.accountStatus !== "deleted" &&
+                            (currentPermissions.isSuperAdmin ||
+                              currentPermissions.can_delete_users) && (
+                            <AdminButton
+                              type="button"
+                              variant="danger"
+                              disabled={isSaving}
+                              onClick={() => void handleAccessAction(user, "delete")}
+                            >
+                              Delete
+                            </AdminButton>
+                          )}
+                          {user.role === "customer" &&
+                            user.accountStatus === "deleted" &&
+                            (currentPermissions.isSuperAdmin ||
+                              currentPermissions.can_delete_users ||
+                              currentPermissions.can_approve_users) && (
+                            <AdminButton
+                              type="button"
+                              variant="primary"
+                              disabled={isSaving}
+                              onClick={() => void handleAccessAction(user, "restore")}
+                            >
+                              Restore
                             </AdminButton>
                           )}
                           {user.role === "admin" &&
@@ -394,6 +446,20 @@ export default function AdminUsersPage() {
           onClose={() => setPermissionsTarget(null)}
         />
       )}
+
+      <AdminCreateUserModal
+        open={isCreateOpen}
+        canApprove={currentPermissions.isSuperAdmin || currentPermissions.can_approve_users}
+        onClose={() => setIsCreateOpen(false)}
+        onCreated={(user) => {
+          setMessage(
+            user.accountStatus === "approved"
+              ? "Member created and approved."
+              : "Member created as pending approval."
+          );
+          void loadUsers(searchQuery, statusFilter);
+        }}
+      />
     </AdminShell>
   );
 }

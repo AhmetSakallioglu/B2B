@@ -11,4 +11,5 @@ export type CreateOrderRequest = {
   shippingPostalCode?: string | null;
   shippingAddressId?: string | null;
   shipping?: CheckoutShippingSelection;
+  sourceQuoteId?: number | null;
 };

@@ -65,6 +65,14 @@ function accountStatusError(status: AccountStatus) {
     } as const;
   }
 
+  if (status === "deleted") {
+    return {
+      status: 403,
+      code: "ACCOUNT_DELETED" satisfies AuthErrorCode,
+      message: LOGIN_STATUS_MESSAGES.deleted,
+    } as const;
+  }
+
   return null;
 }
 

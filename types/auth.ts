@@ -1,6 +1,6 @@
 export type UserRole = "customer" | "admin";
 
-export type AccountStatus = "pending" | "approved" | "rejected";
+export type AccountStatus = "pending" | "approved" | "rejected" | "deleted";
 
 export type SessionUser = {
   id: number;
@@ -30,7 +30,7 @@ export type AuthTokenPayload = SessionUser & {
   sub: string;
 };
 
-export type AuthErrorCode = "ACCOUNT_PENDING" | "ACCOUNT_REJECTED";
+export type AuthErrorCode = "ACCOUNT_PENDING" | "ACCOUNT_REJECTED" | "ACCOUNT_DELETED";
 
 export type LoginErrorResponse = {
   error: string;

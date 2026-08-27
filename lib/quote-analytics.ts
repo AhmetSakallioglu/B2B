@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { OPEN_QUOTE_STATUS_SQL } from "@/lib/quote-validation";
 import {
   HOT_LEAD_MIN_QUOTES,
   type QuoteCustomerAnalytics,
@@ -47,7 +48,7 @@ export async function listQuoteCustomerAnalytics(): Promise<QuoteCustomerAnalyti
           WHERE o.user_id = u.id
         ) AS order_count
       FROM users u
-      INNER JOIN quotes q ON q.user_id = u.id
+      INNER JOIN quotes q ON q.user_id = u.id AND q.status <> 'archived'
       WHERE u.role = 'customer'
       GROUP BY u.id, u.contact_name, u.company_name, u.email, u.phone
       ORDER BY SUM(q.total_amount) DESC, COUNT(q.id) DESC, u.company_name ASC NULLS LAST
@@ -67,7 +68,7 @@ export async function loadQuotePipelineSummary(): Promise<QuotePipelineSummary> 
         COALESCE(SUM(total_amount), 0)::text AS potential_pipeline_revenue,
         COUNT(*)::text AS open_quote_count
       FROM quotes
-      WHERE status IN ('draft', 'pending_approval')
+      WHERE status IN ${OPEN_QUOTE_STATUS_SQL}
     `
   );
 
@@ -97,7 +98,7 @@ export async function loadTopQuoteGenerators(limit = 5): Promise<TopQuoteGenerat
         COUNT(q.id)::text AS total_quotes,
         COALESCE(SUM(q.total_amount), 0)::text AS total_potential_revenue
       FROM users u
-      INNER JOIN quotes q ON q.user_id = u.id
+      INNER JOIN quotes q ON q.user_id = u.id AND q.status <> 'archived'
       WHERE u.role = 'customer'
       GROUP BY u.id, u.contact_name, u.company_name, u.email
       ORDER BY COUNT(q.id) DESC, SUM(q.total_amount) DESC

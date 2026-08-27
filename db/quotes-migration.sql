@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS quotes (
   items         JSONB          NOT NULL,
   total_amount  NUMERIC(12, 2) NOT NULL CHECK (total_amount >= 0),
   status        VARCHAR(32)    NOT NULL DEFAULT 'draft'
-                CHECK (status IN ('draft', 'pending_approval')),
+                CHECK (status IN ('draft', 'pending_approval', 'archived')),
   created_at    TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );

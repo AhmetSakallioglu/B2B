@@ -9,7 +9,8 @@ import { ImpersonateCustomerButton } from "@/components/admin/ImpersonateCustome
 import { refreshAdminNotifications } from "@/components/admin/AdminNotificationsProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
-import { ACCOUNT_STATUS_LABELS, getApprovalConfirmDialog, getApprovalSuccessMessage } from "@/lib/user-approval";
+import { ACCOUNT_STATUS_LABELS, getAccountAccessConfirmDialog, getAccountAccessSuccessMessage } from "@/lib/user-approval";
+import type { AccountAccessAction } from "@/lib/user-approval";
 import { formatDate } from "@/lib/order-display";
 import { ui } from "@/lib/ui-classes";
 import { createEmptyAdminPermissions, type AdminPermissions } from "@/types/admin-permissions";
@@ -123,12 +124,12 @@ export default function AdminUserEditPage() {
     });
   };
 
-  const handleApproval = async (action: "approve" | "reject") => {
+  const handleAccessAction = async (action: AccountAccessAction) => {
     if (!user) {
       return;
     }
 
-    const confirmed = await confirm(getApprovalConfirmDialog(user.accountStatus, action));
+    const confirmed = await confirm(getAccountAccessConfirmDialog(user.accountStatus, action));
 
     if (!confirmed) {
       return;
@@ -159,7 +160,7 @@ export default function AdminUserEditPage() {
         refreshAdminNotifications();
       }
 
-      setMessage(getApprovalSuccessMessage(user.accountStatus, action));
+      setMessage(getAccountAccessSuccessMessage(user.accountStatus, action));
       router.refresh();
     } catch (approvalError) {
       setError(
@@ -268,7 +269,7 @@ export default function AdminUserEditPage() {
               <h2 className="text-lg font-semibold text-navy dark:text-cream">Account access</h2>
               <p className="mt-2 text-sm text-muted dark:text-cream/70">
                 Approved members can sign in and order. Ban a member to revoke access immediately.
-                Banned or pending members cannot use the site.
+                Deleted members stay in the system but cannot sign in and are hidden from default lists.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <AdminBadge
@@ -277,7 +278,9 @@ export default function AdminUserEditPage() {
                       ? "success"
                       : user.accountStatus === "pending"
                         ? "brand"
-                        : "danger"
+                        : user.accountStatus === "deleted"
+                          ? "neutral"
+                          : "danger"
                   }
                 >
                   {ACCOUNT_STATUS_LABELS[user.accountStatus]}
@@ -290,26 +293,52 @@ export default function AdminUserEditPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {user.accountStatus !== "approved" && (
+              {user.accountStatus !== "approved" && user.accountStatus !== "deleted" && (
                 <AdminButton
                   type="button"
                   variant="primary"
                   size="md"
                   disabled={isReviewing}
-                  onClick={() => handleApproval("approve")}
+                  onClick={() => void handleAccessAction("approve")}
                 >
                   {user.accountStatus === "rejected" ? "Reinstate member" : "Approve account"}
                 </AdminButton>
               )}
-              {user.accountStatus !== "rejected" && (
+              {user.accountStatus !== "rejected" && user.accountStatus !== "deleted" && (
                 <AdminButton
                   type="button"
                   variant="danger"
                   size="md"
                   disabled={isReviewing}
-                  onClick={() => handleApproval("reject")}
+                  onClick={() => void handleAccessAction("reject")}
                 >
                   {user.accountStatus === "approved" ? "Ban member" : "Reject registration"}
+                </AdminButton>
+              )}
+              {user.accountStatus !== "deleted" &&
+                (currentPermissions.isSuperAdmin || currentPermissions.can_delete_users) && (
+                <AdminButton
+                  type="button"
+                  variant="danger"
+                  size="md"
+                  disabled={isReviewing}
+                  onClick={() => void handleAccessAction("delete")}
+                >
+                  Delete member
+                </AdminButton>
+              )}
+              {user.accountStatus === "deleted" &&
+                (currentPermissions.isSuperAdmin ||
+                  currentPermissions.can_delete_users ||
+                  currentPermissions.can_approve_users) && (
+                <AdminButton
+                  type="button"
+                  variant="primary"
+                  size="md"
+                  disabled={isReviewing}
+                  onClick={() => void handleAccessAction("restore")}
+                >
+                  Restore member
                 </AdminButton>
               )}
               {user.role === "customer" &&

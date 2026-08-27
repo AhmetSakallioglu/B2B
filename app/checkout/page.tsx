@@ -58,6 +58,7 @@ function CheckoutPageContent() {
   const clearCart = useCartStore((state) => state.clearCart);
   const appliedPromo = useCartStore((state) => state.appliedPromo);
   const setAppliedPromo = useCartStore((state) => state.setAppliedPromo);
+  const sourceQuoteId = useCartStore((state) => state.sourceQuoteId);
 
   useCartPersistence(user, user?.role === "admin", sessionLoading);
   const { hasUnavailableItems, isValidating } = useCartValidation(user?.role !== "admin");
@@ -191,6 +192,7 @@ function CheckoutPageContent() {
         items: toCheckoutLineItems(items),
         promoCode: appliedPromo?.code ?? null,
         shipping: shippingSelectionToCheckoutPayload(shippingSelection),
+        sourceQuoteId,
       };
 
       const response = await fetch("/api/orders", {

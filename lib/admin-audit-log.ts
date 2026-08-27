@@ -156,6 +156,25 @@ export async function logUserProfileUpdated(params: {
   });
 }
 
+export async function logUserCreated(params: {
+  adminUserId: number;
+  userId: number;
+  email: string;
+  accountStatus: string;
+}) {
+  await writeAuditLog({
+    userId: params.adminUserId,
+    action: "CREATE",
+    tableName: "users",
+    recordId: params.userId,
+    newValues: {
+      email: params.email,
+      account_status: params.accountStatus,
+      event: "admin_create",
+    },
+  });
+}
+
 export async function logUserStatusChange(params: {
   adminUserId: number;
   targetUserId: number;

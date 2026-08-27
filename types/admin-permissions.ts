@@ -3,6 +3,8 @@ export const ADMIN_PERMISSION_KEYS = [
   "can_restore_logs",
   "can_approve_users",
   "can_ban_users",
+  "can_create_users",
+  "can_delete_users",
   "can_view_user_tiers",
   "can_change_user_tier",
   "can_add_tiers",
@@ -68,6 +70,16 @@ export const ADMIN_PERMISSION_GROUPS: Array<{
     items: [
       { key: "can_approve_users", label: "Approve / reinstate members" },
       { key: "can_ban_users", label: "Ban / reject members" },
+      {
+        key: "can_create_users",
+        label: "Add members",
+        description: "Create dealer accounts from admin, including incomplete profiles",
+      },
+      {
+        key: "can_delete_users",
+        label: "Delete members",
+        description: "Soft-delete members. They stay in the system as Deleted users and cannot sign in",
+      },
       { key: "can_view_user_tiers", label: "View member tier levels" },
       { key: "can_change_user_tier", label: "Change member tier levels" },
       {
@@ -199,6 +211,16 @@ export const ADMIN_PERMISSION_GROUPS: Array<{
   },
 ];
 
+export const USER_DIRECTORY_PERMISSIONS: AdminPermissionKey[] = [
+  "can_approve_users",
+  "can_ban_users",
+  "can_create_users",
+  "can_delete_users",
+  "can_view_user_tiers",
+  "can_change_user_tier",
+  "can_approve_tax_exemption",
+];
+
 export const ALL_ADMIN_PERMISSIONS = Object.fromEntries(
   ADMIN_PERMISSION_KEYS.map((key) => [key, true])
 ) as Record<AdminPermissionKey, boolean>;
@@ -282,13 +304,7 @@ export const NAV_PERMISSION_REQUIREMENTS: Record<string, AdminPermissionKey[]> =
     "can_toggle_products",
     "can_bulk_upload_products",
   ],
-  "/admin/users": [
-    "can_approve_users",
-    "can_ban_users",
-    "can_view_user_tiers",
-    "can_change_user_tier",
-    "can_approve_tax_exemption",
-  ],
+  "/admin/users": USER_DIRECTORY_PERMISSIONS,
   "/admin/users/tax-exemptions": ["can_approve_tax_exemption"],
   "/admin/logs": ["can_view_logs"],
   "/admin/tiers": ["can_add_tiers", "can_delete_tiers", "can_edit_tiers"],

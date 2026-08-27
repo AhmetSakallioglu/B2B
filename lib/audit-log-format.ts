@@ -141,6 +141,8 @@ export function formatAuditLogSummary(row: AuditLogRow & { user_email?: string |
     if (summary) {
       return summary;
     }
+
+    return `${actor} created member ${readString(row.new_values, "email") ?? label} on ${when}.`;
   }
 
   if (row.action === "UPDATE" && row.table_name === "users") {
@@ -184,6 +186,18 @@ export function formatAuditLogSummary(row: AuditLogRow & { user_email?: string |
       return `${actor} reviewed quote ${readString(row.new_values, "quote_name") ?? label}${
         customerEmail ? ` for ${customerEmail}` : ""
       } on ${when}.`;
+    }
+
+    if (event === "archive") {
+      return `${actor} archived quote ${readString(row.new_values, "quote_name") ?? label} on ${when}.`;
+    }
+
+    if (event === "restore") {
+      return `${actor} restored quote ${readString(row.new_values, "quote_name") ?? label} from archive on ${when}.`;
+    }
+
+    if (event === "ordered") {
+      return `${actor} archived quote ${readString(row.new_values, "quote_name") ?? label} after placing an order on ${when}.`;
     }
   }
 

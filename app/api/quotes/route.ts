@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireCustomerSession } from "@/lib/api-auth";
 import { listQuotesForUser } from "@/lib/quotes";
 
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await requireCustomerSession();
 
   if (auth.response) {
@@ -10,7 +10,8 @@ export async function GET() {
   }
 
   try {
-    const quotes = await listQuotesForUser(auth.user!.id);
+    const archived = new URL(request.url).searchParams.get("archived") === "1";
+    const quotes = await listQuotesForUser(auth.user!.id, { archived });
     return NextResponse.json({ quotes });
   } catch (error) {
     console.error("GET /api/quotes failed:", error);

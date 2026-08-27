@@ -11,7 +11,7 @@ import { formatPrice } from "@/lib/order-display";
 import { ui } from "@/lib/ui-classes";
 import type { AdminQuoteSummary } from "@/types/quotes";
 
-type QuotesTab = "quotes" | "analytics";
+type QuotesTab = "quotes" | "archived" | "analytics";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -21,7 +21,11 @@ function formatDate(value: string) {
 }
 
 function parseTab(value: string | null): QuotesTab {
-  return value === "analytics" ? "analytics" : "quotes";
+  if (value === "analytics" || value === "archived") {
+    return value;
+  }
+
+  return "quotes";
 }
 
 function parseUserId(value: string | null) {
@@ -47,10 +51,12 @@ export default function AdminQuotesPage() {
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/quotes");
+      const response = await fetch(
+        `/api/admin/quotes${activeTab === "archived" ? "?archived=1" : ""}`
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to load quotes");
+        throw new Error(activeTab === "archived" ? "Failed to load archived quotes" : "Failed to load quotes");
       }
 
       const data = (await response.json()) as { quotes: AdminQuoteSummary[] };
@@ -60,10 +66,10 @@ export default function AdminQuotesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [activeTab]);
 
   useDeferredEffect(() => {
-    if (activeTab === "quotes") {
+    if (activeTab !== "analytics") {
       void loadQuotes();
     }
   }, [activeTab, loadQuotes]);
@@ -98,7 +104,13 @@ export default function AdminQuotesPage() {
           href="/admin/quotes?tab=quotes"
           className={activeTab === "quotes" ? ui.tabActive : ui.tabIdle}
         >
-          All quotes
+          Active quotes
+        </Link>
+        <Link
+          href="/admin/quotes?tab=archived"
+          className={activeTab === "archived" ? ui.tabActive : ui.tabIdle}
+        >
+          Archive
         </Link>
         <Link
           href="/admin/quotes?tab=analytics"
@@ -132,7 +144,7 @@ export default function AdminQuotesPage() {
                 <span className="font-semibold">{filteredCustomerLabel ?? `customer #${filterUserId}`}</span>
               </p>
               <Link
-                href="/admin/quotes?tab=quotes"
+                href={`/admin/quotes?tab=${activeTab}`}
                 className="text-sm font-medium text-brand underline-offset-2 hover:underline"
               >
                 Clear filter
@@ -142,13 +154,17 @@ export default function AdminQuotesPage() {
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <div className={`p-5 ${ui.adminCard}`}>
-              <p className="text-sm font-medium text-slate-500 dark:text-cream/70">Saved quotes</p>
+              <p className="text-sm font-medium text-slate-500 dark:text-cream/70">
+                {activeTab === "archived" ? "Archived quotes" : "Open quotes"}
+              </p>
               <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-cream">
                 {filteredQuotes.length}
               </p>
             </div>
             <div className={`border-brand/30 bg-brand-light/30 p-5 ${ui.adminCard}`}>
-              <p className="text-sm font-medium text-brand">Combined draft value</p>
+              <p className="text-sm font-medium text-brand">
+                {activeTab === "archived" ? "Archived value" : "Combined draft value"}
+              </p>
               <p className="mt-2 text-3xl font-bold tracking-tight text-brand">{formatPrice(totalValue)}</p>
             </div>
           </div>
@@ -156,12 +172,18 @@ export default function AdminQuotesPage() {
           {filteredQuotes.length === 0 ? (
             <div className={`px-6 py-12 text-center ${ui.emptyState}`}>
               <p className="text-base font-semibold text-slate-900 dark:text-cream">
-                {filterUserId ? "No quotes for this customer" : "No quotes saved yet"}
+                {filterUserId
+                  ? "No quotes for this customer"
+                  : activeTab === "archived"
+                    ? "No archived quotes"
+                    : "No quotes saved yet"}
               </p>
               <p className="mt-2 text-sm text-slate-500 dark:text-cream/60">
                 {filterUserId
-                  ? "This dealer has not saved any quote drafts yet."
-                  : "Dealer quote drafts will appear here once they use Save as Quote on the cart page."}
+                  ? "This dealer has no quotes in this view."
+                  : activeTab === "archived"
+                    ? "Quotes archived by dealers or converted into orders will appear here. They are excluded from pipeline statistics."
+                    : "Dealer quote drafts will appear here once they use Save as Quote on the cart page."}
               </p>
             </div>
           ) : (
@@ -205,7 +227,7 @@ export default function AdminQuotesPage() {
                         </td>
                         <td className={`${ui.tableCell} text-right`}>
                           <Link
-                            href={`/admin/quotes/${quote.id}`}
+                            href={`/admin/quotes/${quote.id}${activeTab === "archived" ? "?from=archived" : ""}`}
                             className={`${ui.btnSecondary} px-3 py-1.5 text-xs`}
                           >
                             View details

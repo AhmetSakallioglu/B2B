@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { loadTopQuoteGenerators } from "@/lib/quote-analytics";
+import { OPEN_QUOTE_STATUS_SQL } from "@/lib/quote-validation";
 import type {
   AdminDashboardData,
   AdminDashboardOverview,
@@ -119,11 +120,11 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardData> {
           ) AS out_of_stock_count,
           (
             SELECT COALESCE(SUM(total_amount), 0)::text FROM quotes
-            WHERE status IN ('draft', 'pending_approval')
+            WHERE status IN ${OPEN_QUOTE_STATUS_SQL}
           ) AS potential_pipeline_revenue,
           (
             SELECT COUNT(*)::text FROM quotes
-            WHERE status IN ('draft', 'pending_approval')
+            WHERE status IN ${OPEN_QUOTE_STATUS_SQL}
           ) AS open_quote_count
       `),
       query<RecentOrderRow>(`

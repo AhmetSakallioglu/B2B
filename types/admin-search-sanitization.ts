@@ -34,7 +34,7 @@ export const ADMIN_SEARCH_PARAM_LIMITS = {
 
 export const ANNOUNCEMENT_FREQUENCY_VALUES = ["ONCE", "EVERY_SESSION", "MAX_LIMIT"] as const;
 
-export const ADMIN_USER_STATUS_VALUES = ["all", "pending", "approved", "rejected"] as const;
+export const ADMIN_USER_STATUS_VALUES = ["all", "pending", "approved", "rejected", "deleted"] as const;
 
 export const ADMIN_PRODUCT_STOCK_VALUES = ["all", "in_stock", "out_of_stock"] as const;
 

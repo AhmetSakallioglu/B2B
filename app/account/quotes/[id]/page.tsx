@@ -5,15 +5,18 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { CustomerAccountNav } from "@/components/account/CustomerAccountNav";
 import { QuotePriceChangeBanner } from "@/components/quotes/QuotePriceChangeBanner";
+import { QuotesFolderNav } from "@/components/quotes/QuotesFolderNav";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { ArrowLeftIcon, ClipboardListIcon, ShoppingCartIcon } from "@/components/ui/Icon";
 import { IconLabel } from "@/components/ui/IconLabel";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { getCartItemDimensionsLabel, stripCartItemDimensions } from "@/lib/format-dimensions";
 import { formatPrice } from "@/lib/order-display";
+import { isArchivedQuoteStatus } from "@/lib/quote-validation";
 import { ui } from "@/lib/ui-classes";
 import { useCartStore } from "@/store/useCartStore";
-import type { QuoteDetailResponse } from "@/types/quotes";
+import type { QuoteDetail, QuoteDetailResponse } from "@/types/quotes";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -26,12 +29,15 @@ export default function AccountQuoteDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const quoteId = Number.parseInt(params.id, 10);
+  const { confirm } = useConfirm();
   const setItems = useCartStore((state) => state.setItems);
+  const setSourceQuoteId = useCartStore((state) => state.setSourceQuoteId);
   const setQuotePriceChangeNotice = useCartStore((state) => state.setQuotePriceChangeNotice);
 
   const [quoteData, setQuoteData] = useState<QuoteDetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCart, setIsLoadingCart] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadQuote = useCallback(async () => {
@@ -79,6 +85,7 @@ export default function AccountQuoteDetailPage() {
 
     try {
       setItems(quoteData.quote.items);
+      setSourceQuoteId(quoteData.quote.id);
 
       if (quoteData.price_changed && quoteData.changed_items) {
         setQuotePriceChangeNotice({
@@ -104,7 +111,68 @@ export default function AccountQuoteDetailPage() {
     }
   };
 
+  const setQuoteArchived = async (nextArchived: boolean) => {
+    if (!quoteData) {
+      return;
+    }
+
+    if (nextArchived) {
+      const confirmed = await confirm({
+        title: "Archive this quote?",
+        description:
+          "It will move to Quote Archive and drop out of admin pipeline statistics. You can restore it later.",
+        confirmLabel: "Archive quote",
+        tone: "warning",
+      });
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    setIsUpdating(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/quotes/${quoteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: nextArchived }),
+      });
+
+      if (!response.ok) {
+        throw new Error(nextArchived ? "Failed to archive quote" : "Failed to restore quote");
+      }
+
+      const data = (await response.json()) as { quote: QuoteDetail };
+      setQuoteData((current) =>
+        current
+          ? {
+              ...current,
+              quote: {
+                ...current.quote,
+                ...data.quote,
+                items: current.quote.items,
+              },
+            }
+          : current
+      );
+      router.push(nextArchived ? "/account/quotes/archive" : "/account/quotes");
+    } catch (updateError) {
+      setError(
+        updateError instanceof Error
+          ? updateError.message
+          : nextArchived
+            ? "Failed to archive quote"
+            : "Failed to restore quote"
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const quote = quoteData?.quote;
+  const archived = quote ? isArchivedQuoteStatus(quote.status) : false;
   const changedByVariantId = new Map(
     (quoteData?.changed_items ?? []).map((item) => [item.variantId, item])
   );
@@ -113,8 +181,13 @@ export default function AccountQuoteDetailPage() {
     <div className={ui.catalogPageBg}>
       <header className={ui.adminHeaderBar}>
         <div className={`${ui.pageContainerNarrow} py-4`}>
-          <Link href="/account/quotes" className={ui.btnSecondary}>
-            <IconLabel icon={<ArrowLeftIcon size={15} />}>Back to My Quotes</IconLabel>
+          <Link
+            href={archived ? "/account/quotes/archive" : "/account/quotes"}
+            className={ui.btnSecondary}
+          >
+            <IconLabel icon={<ArrowLeftIcon size={15} />}>
+              {archived ? "Back to Quote Archive" : "Back to My Quotes"}
+            </IconLabel>
           </Link>
           <div className="mt-4">
             <p className={ui.eyebrow}>Account</p>
@@ -123,8 +196,9 @@ export default function AccountQuoteDetailPage() {
               {quote?.quoteName ?? "Quote details"}
             </h1>
           </div>
-          <div className="mt-5">
+          <div className="mt-5 space-y-4">
             <CustomerAccountNav active="quotes" />
+            <QuotesFolderNav archived={archived} />
           </div>
         </div>
       </header>
@@ -132,12 +206,17 @@ export default function AccountQuoteDetailPage() {
       <main className={`${ui.pageContainerNarrow} space-y-6 py-8`}>
         {isLoading ? (
           <LoadingState label="Loading quote..." minHeight="min-h-[320px]" spinnerSize="lg" />
-        ) : error || !quote ? (
+        ) : !quote ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-8 text-center dark:border-red-900/40 dark:bg-red-950/30">
             <p className="text-red-700 dark:text-red-300">{error ?? "Quote not found"}</p>
           </div>
         ) : (
           <>
+            {error && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                {error}
+              </div>
+            )}
             {quoteData.price_changed && (
               <QuotePriceChangeBanner
                 oldTotalAmount={quoteData.old_total_amount}
@@ -174,6 +253,25 @@ export default function AccountQuoteDetailPage() {
                   <ShoppingCartIcon size={15} />
                   {isLoadingCart ? "Loading..." : "Load into cart"}
                 </button>
+                {archived ? (
+                  <button
+                    type="button"
+                    disabled={isUpdating}
+                    onClick={() => void setQuoteArchived(false)}
+                    className={`mt-2 inline-flex ${ui.btnSecondary}`}
+                  >
+                    {isUpdating ? "Restoring..." : "Restore quote"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isUpdating}
+                    onClick={() => void setQuoteArchived(true)}
+                    className={`mt-2 inline-flex ${ui.btnGhost}`}
+                  >
+                    {isUpdating ? "Archiving..." : "Archive quote"}
+                  </button>
+                )}
               </div>
             </div>
 

@@ -59,11 +59,18 @@ export default function AdminQuoteDetailPage() {
   return (
     <AdminShell
       title={quote?.quoteName ?? "Quote details"}
-      subtitle="Review cabinets, dimensions, and pricing in this saved draft"
+      subtitle={
+        quote?.status === "archived"
+          ? "This quote is archived and is excluded from pipeline statistics"
+          : "Review cabinets, dimensions, and pricing in this saved draft"
+      }
       wide
     >
       <div className="mb-6">
-        <Link href="/admin/quotes" className={ui.btnSecondary}>
+        <Link
+          href={quote?.status === "archived" ? "/admin/quotes?tab=archived" : "/admin/quotes"}
+          className={ui.btnSecondary}
+        >
           <IconLabel icon={<ArrowLeftIcon size={15} />}>Back to quotes</IconLabel>
         </Link>
       </div>

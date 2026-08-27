@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdminPermission } from "@/lib/api-auth";
+import { requireAdminPermission, requireAnyAdminPermission } from "@/lib/api-auth";
 import {
   fetchUserStatusAuditSnapshot,
   logUserStatusChange,
@@ -8,12 +8,48 @@ import { bumpUserSessionVersion } from "@/lib/session-version";
 import { mapAdminUserDetail } from "@/lib/admin-users";
 import { ADMIN_USER_SELECT } from "@/lib/customer-tier";
 import { query } from "@/lib/db";
-import { parseApprovalAction } from "@/lib/user-approval";
+import {
+  parseApprovalAction,
+  type AccountAccessAction,
+  type AccountStatus,
+} from "@/lib/user-approval";
 import type { AdminUserRow } from "@/types/customer-tier";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
+
+function nextStatusForAction(action: AccountAccessAction): AccountStatus {
+  if (action === "approve") {
+    return "approved";
+  }
+
+  if (action === "reject") {
+    return "rejected";
+  }
+
+  if (action === "delete") {
+    return "deleted";
+  }
+
+  return "pending";
+}
+
+async function authorizeAccessAction(action: AccountAccessAction) {
+  if (action === "approve") {
+    return requireAdminPermission("can_approve_users");
+  }
+
+  if (action === "reject") {
+    return requireAdminPermission("can_ban_users");
+  }
+
+  if (action === "restore") {
+    return requireAnyAdminPermission(["can_delete_users", "can_approve_users"]);
+  }
+
+  return requireAdminPermission("can_delete_users");
+}
 
 export async function POST(request: Request, context: RouteContext) {
   const action = parseApprovalAction(await request.json());
@@ -22,9 +58,7 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Invalid approval action" }, { status: 400 });
   }
 
-  const auth = await requireAdminPermission(
-    action === "approve" ? "can_approve_users" : "can_ban_users"
-  );
+  const auth = await authorizeAccessAction(action);
 
   if (auth.response) {
     return auth.response;
@@ -41,7 +75,7 @@ export async function POST(request: Request, context: RouteContext) {
     const existing = await query<{
       id: number;
       role: "customer" | "admin";
-      account_status: "pending" | "approved" | "rejected";
+      account_status: AccountStatus;
     }>("SELECT id, role, account_status FROM users WHERE id = $1", [userId]);
 
     if (existing.rows.length === 0) {
@@ -52,9 +86,20 @@ export async function POST(request: Request, context: RouteContext) {
 
     if (current.role === "admin") {
       return NextResponse.json(
-        { error: "Admin accounts do not require approval" },
+        { error: "Admin accounts cannot be approved, banned, or deleted this way" },
         { status: 400 }
       );
+    }
+
+    if (action !== "restore" && current.account_status === "deleted") {
+      return NextResponse.json(
+        { error: "Restore this deleted member before changing account access" },
+        { status: 400 }
+      );
+    }
+
+    if (action === "restore" && current.account_status !== "deleted") {
+      return NextResponse.json({ error: "Only deleted members can be restored" }, { status: 400 });
     }
 
     const oldStatus = await fetchUserStatusAuditSnapshot(userId);
@@ -63,18 +108,19 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const nextStatus = action === "approve" ? "approved" : "rejected";
+    const nextStatus = nextStatusForAction(action);
 
     if (current.account_status === nextStatus) {
-      return NextResponse.json(
-        {
-          error:
-            nextStatus === "rejected"
-              ? "Account is already banned"
-              : "Account is already approved",
-        },
-        { status: 409 }
-      );
+      const alreadyMessage =
+        nextStatus === "rejected"
+          ? "Account is already banned"
+          : nextStatus === "deleted"
+            ? "Account is already deleted"
+            : nextStatus === "pending"
+              ? "Account is already pending"
+              : "Account is already approved";
+
+      return NextResponse.json({ error: alreadyMessage }, { status: 409 });
     }
 
     await query(

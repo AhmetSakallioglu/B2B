@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ClipboardListIcon, PackageIcon, ShoppingCartIcon } from "@/components/ui/Icon";
 import { formatPrice } from "@/lib/order-display";
-import type { QuoteStatus } from "@/lib/quote-validation";
+import { isArchivedQuoteStatus, type QuoteStatus } from "@/lib/quote-validation";
 import { ui } from "@/lib/ui-classes";
 import type { QuoteSummary } from "@/types/quotes";
 
@@ -15,10 +15,18 @@ function formatDate(value: string) {
 }
 
 function quoteStatusLabel(status: QuoteStatus) {
+  if (status === "archived") {
+    return "Archived";
+  }
+
   return status === "pending_approval" ? "Pending approval" : "Draft";
 }
 
 function quoteStatusBadgeClass(status: QuoteStatus) {
+  if (status === "archived") {
+    return "border-slate-200 bg-slate-50 text-slate-500 dark:border-zinc-600 dark:bg-navy-hover dark:text-cream/70";
+  }
+
   if (status === "pending_approval") {
     return "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200";
   }
@@ -29,13 +37,24 @@ function quoteStatusBadgeClass(status: QuoteStatus) {
 type QuoteSummaryCardProps = {
   quote: QuoteSummary;
   isLoading: boolean;
+  isUpdating?: boolean;
   onLoadToCart: () => void;
+  onArchive?: () => void;
+  onRestore?: () => void;
 };
 
-export function QuoteSummaryCard({ quote, isLoading, onLoadToCart }: QuoteSummaryCardProps) {
+export function QuoteSummaryCard({
+  quote,
+  isLoading,
+  isUpdating = false,
+  onLoadToCart,
+  onArchive,
+  onRestore,
+}: QuoteSummaryCardProps) {
   const createdLabel = formatDate(quote.createdAt);
   const updatedLabel = formatDate(quote.updatedAt);
   const showUpdated = quote.updatedAt !== quote.createdAt;
+  const archived = isArchivedQuoteStatus(quote.status);
 
   return (
     <article
@@ -88,12 +107,33 @@ export function QuoteSummaryCard({ quote, isLoading, onLoadToCart }: QuoteSummar
         className={`flex flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-6 ${ui.adminActionBar}`}
       >
         <p className={`text-xs ${ui.bodyMuted}`}>
-          Reload this draft into your cart to edit quantities or place an order.
+          {archived
+            ? "This quote is archived. Restore it to keep it in your active list, or load it into your cart."
+            : "Reload this draft into your cart to edit quantities or place an order."}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Link href={`/account/quotes/${quote.id}`} className={ui.btnSecondary}>
             View details
           </Link>
+          {archived ? (
+            <button
+              type="button"
+              disabled={isUpdating}
+              onClick={onRestore}
+              className={ui.btnSecondary}
+            >
+              {isUpdating ? "Restoring..." : "Restore"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={isUpdating}
+              onClick={onArchive}
+              className={ui.btnGhost}
+            >
+              {isUpdating ? "Archiving..." : "Archive"}
+            </button>
+          )}
           <button
             type="button"
             disabled={isLoading}

@@ -1,3 +1,4 @@
+import type { AccountStatus } from "@/lib/user-approval";
 import type { TaxExemptionStatus } from "@/types/tax-exemption";
 
 export type CustomerTier = {
@@ -20,7 +21,7 @@ export type AdminUserSummary = {
   id: number;
   email: string;
   role: "customer" | "admin";
-  accountStatus: "pending" | "approved" | "rejected";
+  accountStatus: AccountStatus;
   companyName: string;
   contactName: string;
   phone: string;
@@ -75,7 +76,7 @@ export type AdminUserRow = {
   id: number;
   email: string;
   role: "customer" | "admin";
-  account_status: "pending" | "approved" | "rejected";
+  account_status: AccountStatus;
   company_name: string | null;
   contact_name: string | null;
   phone: string | null;
@@ -125,7 +126,7 @@ export type AdminUserRow = {
 
 export type UpdateAdminUserBody = {
   role?: "customer" | "admin";
-  accountStatus?: "pending" | "approved" | "rejected";
+  accountStatus?: AccountStatus;
   tierId?: number | null;
   companyName?: string;
   contactName?: string;

@@ -18,6 +18,37 @@ export type QuotePriceChangeNotice = {
   changedItems: QuotePriceChangedItem[];
 };
 
+const SOURCE_QUOTE_STORAGE_KEY = "cabinet-source-quote-id";
+
+function readStoredSourceQuoteId(): number | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const parsed = Number.parseInt(sessionStorage.getItem(SOURCE_QUOTE_STORAGE_KEY) ?? "", 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSourceQuoteId(quoteId: number | null) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    if (quoteId) {
+      sessionStorage.setItem(SOURCE_QUOTE_STORAGE_KEY, String(quoteId));
+    } else {
+      sessionStorage.removeItem(SOURCE_QUOTE_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage failures (private mode, quota, etc.).
+  }
+}
+
 type CartState = {
   items: CartItem[];
   isHydrated: boolean;
@@ -26,11 +57,13 @@ type CartState = {
   isValidatingAvailability: boolean;
   quotePriceChangeNotice: QuotePriceChangeNotice | null;
   appliedPromo: AppliedPromoSummary | null;
+  sourceQuoteId: number | null;
   setItems: (items: CartItem[]) => void;
   setHydrated: (value: boolean) => void;
   setAvailability: (availability: Record<string, boolean>) => void;
   setQuotePriceChangeNotice: (notice: QuotePriceChangeNotice | null) => void;
   setAppliedPromo: (promo: AppliedPromoSummary | null) => void;
+  setSourceQuoteId: (quoteId: number | null) => void;
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -50,12 +83,26 @@ export const useCartStore = create<CartState>((set, get) => ({
   isValidatingAvailability: false,
   quotePriceChangeNotice: null,
   appliedPromo: null,
+  sourceQuoteId: readStoredSourceQuoteId(),
 
-  setItems: (items) => set({ items, availability: {}, appliedPromo: null }),
+  setItems: (items) =>
+    set((state) => {
+      const sourceQuoteId = items.length === 0 ? null : state.sourceQuoteId;
+
+      if (sourceQuoteId === null) {
+        writeStoredSourceQuoteId(null);
+      }
+
+      return { items, availability: {}, appliedPromo: null, sourceQuoteId };
+    }),
   setHydrated: (value) => set({ isHydrated: value }),
   setAvailability: (availability) => set({ availability }),
   setQuotePriceChangeNotice: (notice) => set({ quotePriceChangeNotice: notice }),
   setAppliedPromo: (promo) => set({ appliedPromo: promo }),
+  setSourceQuoteId: (quoteId) => {
+    writeStoredSourceQuoteId(quoteId);
+    set({ sourceQuoteId: quoteId });
+  },
 
   addItem: (item, quantity = 1) => {
     set((state) => {
@@ -99,9 +146,17 @@ export const useCartStore = create<CartState>((set, get) => ({
         return state;
       }
 
+      const items = state.items.filter((item) => item.id !== id);
+      const sourceQuoteId = items.length === 0 ? null : state.sourceQuoteId;
+
+      if (sourceQuoteId === null) {
+        writeStoredSourceQuoteId(null);
+      }
+
       return {
-        items: state.items.filter((item) => item.id !== id),
+        items,
         appliedPromo: null,
+        sourceQuoteId,
         lastFeedback: {
           type: "remove",
           name: removed.name,
@@ -126,7 +181,16 @@ export const useCartStore = create<CartState>((set, get) => ({
     }));
   },
 
-  clearCart: () => set({ items: [], availability: {}, quotePriceChangeNotice: null, appliedPromo: null }),
+  clearCart: () => {
+    writeStoredSourceQuoteId(null);
+    set({
+      items: [],
+      availability: {},
+      quotePriceChangeNotice: null,
+      appliedPromo: null,
+      sourceQuoteId: null,
+    });
+  },
 
   removeUnavailableItems: () => {
     set((state) => {
